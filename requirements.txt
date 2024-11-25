@@ -1,0 +1,2 @@
+docker==7.1.0
+smm-client==0.0.2

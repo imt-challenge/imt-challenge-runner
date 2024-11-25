@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""
+Start an IMT Challenge based on a config file
+"""
 
 import time
 

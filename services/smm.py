@@ -19,8 +19,7 @@ class SMMServer:
     """
     A Search Management Map Instance
     """
-    def __init__(self, name : str, network, docker_client) -> None:
-        self.name = name
+    def __init__(self, name: str, network, docker_client) -> None:
         self.port = random.randint(20000, 65000)
         self.external_network = network
         self.internal_port = 8080
@@ -34,7 +33,7 @@ class SMMServer:
         self.instance = docker_client.containers.create(
             'canterburyairpatrol/search-management-map:latest',
             detach=True,
-            name=self.name,
+            name=name,
             environment=[
                 f'DB_HOST={self.postgres.name}',
                 f'DB_PASS={self.postgres.get_password()}',

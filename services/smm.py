@@ -90,5 +90,5 @@ class SMMServer:
         """
         Return an SMMConnection object connected to this server
         """
-        actual_password = password if not None else self.admin_password
+        actual_password = password if password is not None else self.admin_password
         return SMMConnection(f'http://localhost:{self.port}', username, actual_password)

@@ -2,10 +2,7 @@
 Classes to run an instance of IMT
 """
 
-import json
-
-import yaml
-
+from configloader import load_config
 from services.smm import SMMServer
 
 class Participant:
@@ -20,13 +17,7 @@ class Participant:
         """
         Load in the participant config
         """
-        config = None
-        if filename.endswith('.yml') or filename.endswith('.yaml'):
-            with open(filename, 'r', encoding='utf-8') as file:
-                config = yaml.safe_load(file)
-        elif filename.endswith('.json'):
-            with open(filename, 'r', encoding='utf-8') as file:
-                config = json.load(file)
+        config = load_config(filename)
         if config is None:
             return False
         # These inputs should get checked

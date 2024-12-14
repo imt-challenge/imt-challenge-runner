@@ -34,9 +34,9 @@ if __name__ == "__main__":
 
     runner = MissionRunner(args.mission)
 
-    participant_services = []
-    for participant in args.participant:
-        participant_services.append(Participant(participant))
+    participant_services = [
+        Participant(participant) for participant in args.participant
+    ]
 
     # Start all the services
     for participant in participant_services:

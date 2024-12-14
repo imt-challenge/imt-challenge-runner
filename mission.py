@@ -55,13 +55,15 @@ def sanitize_account_name(account: str) -> str:
     return account.lower().replace(' ', '.').replace('/', '.')
 
 
-class MissionRunner:
+class MissionRunnerParticipant:
     """
-    Runner for a Mission
+    Manage a Participant in a Mission
+    This keeps track of state of a current participants mission
     """
-    def __init__(self, filename) -> None:
+    def __init__(self, parent: MissionRunner, smm: SMMServer) -> None:
+        self.parent = parent
+        self.smm = smm
         self.runner_password = get_random_string(12)
-        self.config = load_config(filename)
         self.asset_accounts = {}
         self.organization_admins = {}
 
@@ -76,16 +78,15 @@ class MissionRunner:
             }
         return self.asset_accounts[asset]
 
-    def add_imt_login(self, smm: SMMServer) -> None:
+    def add_imt_login(self) -> None:
         """
         Add the IMT monitor/manager account to this server
         """
-        smm_admin = smm.get_web_connection()
+        smm_admin = self.smm.get_web_connection()
         smm_admin.create_user('imt-challenge', self.runner_password)
 
     def _setup_asset(
             self,
-            smm: SMMServer,
             asset,
             smm_admin,
             smm_imt_challenge) -> None:
@@ -100,7 +101,7 @@ class MissionRunner:
             asset_smm_account,
             asset['name'],
             smm_get_or_create_asset_type(smm_admin, asset['type']))
-        smm_asset = smm.get_web_connection(
+        smm_asset = self.smm.get_web_connection(
             asset_account['username'],
             asset_account['password'])
         organization = smm_get_or_create_organization(
@@ -114,17 +115,17 @@ class MissionRunner:
         org_asset_user.add_asset(asset_smm)
         organization.add_member(asset_smm_account, role='M')
 
-    def add_assets(self, smm: SMMServer) -> None:
+    def add_assets(self) -> None:
         """
         Add the known assets into the SMM instance
         """
-        if 'assets' in self.config:
-            smm_admin = smm.get_web_connection()
-            smm_imt_challenge = smm.get_web_connection(
+        if 'assets' in self.parent.config:
+            smm_admin = self.smm.get_web_connection()
+            smm_imt_challenge = self.smm.get_web_connection(
                 'imt-challenge',
                 self.runner_password)
-            for asset in self.config['assets']:
-                self._setup_asset(smm, asset, smm_admin, smm_imt_challenge)
+            for asset in self.parent.config['assets']:
+                self._setup_asset(asset, smm_admin, smm_imt_challenge)
 
     def _add_poi_to_mission(self, mission: SMMMission, poi: dict) -> bool:
         """
@@ -142,18 +143,18 @@ class MissionRunner:
             return True
         return False
 
-    def create_mission(self, smm: SMMServer) -> None:
+    def create_mission(self) -> None:
         """
         Create the mission and populate it with the starting data
         """
-        smm_imt_challenge = smm.get_web_connection(
+        smm_imt_challenge = self.smm.get_web_connection(
             'imt-challenge',
             self.runner_password)
         mission = smm_imt_challenge.create_mission(
-            self.config['name'],
-            self.config['description'])
-        if 'POIs' in self.config:
-            for poi in self.config['POIs']:
+            self.parent.config['name'],
+            self.parent.config['description'])
+        if 'POIs' in self.parent.config:
+            for poi in self.parent.config['POIs']:
                 if not isinstance(poi, dict):
                     continue
                 self._add_poi_to_mission(mission, poi)
@@ -167,3 +168,28 @@ class MissionRunner:
                 # Adding an organization is the trigger event to activate
                 # the related asset(s)
                 mission_org.set_can_add_organizations(value=True)
+
+
+class MissionRunner:
+    """
+    Runner for a Mission
+    """
+    def __init__(self, filename) -> None:
+        self.config = load_config(filename)
+        self.participants = []
+
+    def add_participant(self, smm: SMMServer) -> None:
+        """
+        Add a participant
+        """
+        participant = MissionRunnerParticipant(self, smm)
+        participant.add_imt_login()
+        participant.add_assets()
+        self.participants.append(participant)
+
+    def create_mission(self) -> None:
+        """
+        Create the mission in participants server(s)
+        """
+        for participant in self.participants:
+            participant.create_mission()

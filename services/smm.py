@@ -26,10 +26,17 @@ class SMMServer:
         try:
             self.db_net = docker_client.networks.get(f'{name}-net')
         except docker.errors.NotFound:
-            self.db_net = docker_client.networks.create(f'{name}-net', driver='bridge')
-        self.postgres = PostgresServer(f'{name}-db-server', self.db_net, 'smm', docker_client)
+            self.db_net = docker_client.networks.create(
+                f'{name}-net',
+                driver='bridge')
+        self.postgres = PostgresServer(
+            f'{name}-db-server',
+            self.db_net,
+            'smm',
+            docker_client)
         self.admin_password = get_random_string(10)
-        docker_client.images.pull('canterburyairpatrol/search-management-map:latest')
+        docker_client.images.pull(
+            'canterburyairpatrol/search-management-map:latest')
         self.instance = docker_client.containers.create(
             'canterburyairpatrol/search-management-map:latest',
             detach=True,
@@ -85,9 +92,16 @@ class SMMServer:
         self.postgres.cleanup()
         self.db_net.remove()
 
-    def get_web_connection(self, username='admin', password=None) -> SMMConnection:
+    def get_web_connection(
+            self,
+            username='admin',
+            password=None) -> SMMConnection:
         """
         Return an SMMConnection object connected to this server
         """
-        actual_password = password if password is not None else self.admin_password
-        return SMMConnection(f'http://localhost:{self.port}', username, actual_password)
+        actual_password = password if password is not None \
+            else self.admin_password
+        return SMMConnection(
+            f'http://localhost:{self.port}',
+            username,
+            actual_password)

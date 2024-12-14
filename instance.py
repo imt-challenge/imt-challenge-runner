@@ -5,6 +5,7 @@ Classes to run an instance of IMT
 from configloader import load_config
 from services.smm import SMMServer
 
+
 class Participant:
     """
     State for a participant
@@ -39,7 +40,9 @@ class Participant:
         smm_admin = self.smm.get_web_connection()
         imt_org = smm_admin.create_organization('IMT')
         for member in self.members:
-            user = smm_admin.create_user(member['username'], member['password'])
+            user = smm_admin.create_user(
+                member['username'],
+                member['password'])
             imt_org.add_member(user)
 
     def stop(self) -> None:

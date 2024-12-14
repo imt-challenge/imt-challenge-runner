@@ -42,17 +42,15 @@ if __name__ == "__main__":
     for participant in participant_services:
         participant.start(docker_client)
 
-    # Setup the mission on each server
+    # Add each participant to the runner
     for participant in participant_services:
-        runner.add_imt_login(participant.smm)
-        runner.add_assets(participant.smm)
+        runner.add_participant(participant.smm)
 
     # Setup the participants in their server
     for participant in participant_services:
         participant.setup()
 
-    for participant in participant_services:
-        runner.create_mission(participant.smm)
+    runner.create_mission()
 
     print("Ready. Lets go")
 

@@ -5,7 +5,8 @@ Run an IMT Challenge
 
     git clone https://github.com/imt-challenge/imt-challenge-runner.git
     cd imt-challenge-runner
-    ./setup.sh
+    ./setup-venv.sh
+    source venv/bin/activate
     ./letsgo.py -m <mission-file> -p <participant-file>
 
 There can be one or more participants in the same mission, each participant will get their own instance of the mission.

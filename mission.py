@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from smm_client.organizations import SMMOrganization
+from smm_client.types import SMMPoint
 from services.helpers import get_random_string
 from configloader import load_config
 
@@ -94,3 +95,30 @@ class MissionRunner:
                 org_asset_user = SMMOrganization(smm_asset, organization.id, organization.name)
                 org_asset_user.add_asset(asset_smm)
                 organization.add_member(asset_smm_account, role='M')
+
+    def create_mission(self, smm: SMMServer) -> None:
+        """
+        Create the mission and populate it with the starting data
+        """
+        smm_imt_challenge = smm.get_web_connection('imt-challenge', self.runner_password)
+        mission = smm_imt_challenge.create_mission(self.config['name'], self.config['description'])
+        if 'POIs' in self.config:
+            for poi in self.config['POIs']:
+                if not isinstance(poi, dict):
+                    continue
+                location = poi.get('location')
+                if not isinstance(location, dict):
+                    continue
+                point = None
+                if 'latitude' in location and 'longitude' in location:
+                    point = SMMPoint(location['latitude'], location['longitude'])
+                name = poi.get('name')
+                if point is not None and name is not None:
+                    mission.add_waypoint(point, name)
+        organisations = smm_imt_challenge.get_organizations(all_orgs=True)
+        for organisation in organisations:
+            if organisation.name == 'IMT':
+                mission_org = mission.add_organization(organisation)
+                # Make it so the IMT members can add other organizations to the mission
+                # Adding an organization is the trigger event to activate the related asset(s)
+                mission_org.set_can_add_organizations(value=True)

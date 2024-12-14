@@ -42,6 +42,11 @@ if __name__ == "__main__":
     for participant in participant_services:
         participant.setup()
 
+    for participant in participant_services:
+        runner.create_mission(participant.smm)
+
+    print("Ready. Lets go")
+
     # Run the IMT Challenge
     time.sleep(120)
 

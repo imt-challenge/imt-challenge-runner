@@ -16,8 +16,17 @@ if __name__ == "__main__":
         prog='imt-challenge-runner',
         description='Start and run an IMT challenge',
     )
-    parser.add_argument('-m', '--mission', required=True, help='load the mission description file')
-    parser.add_argument('-p', '--participant', required=True, action='append', help='load participant details from file')
+    parser.add_argument(
+        '-m',
+        '--mission',
+        required=True,
+        help='load the mission description file')
+    parser.add_argument(
+        '-p',
+        '--participant',
+        required=True,
+        action='append',
+        help='load participant details from file')
 
     args = parser.parse_args()
 

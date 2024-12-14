@@ -2,6 +2,6 @@
 
 source venv/bin/activate
 
-pycodestyle --ignore=E501 */*.py
+pycodestyle *.py */*.py
 
-PYTHONPATH=`pwd` pylint --max-line-length=240 services/ letsgo.py instance.py mission.py
+PYTHONPATH=`pwd` pylint services/ letsgo.py instance.py mission.py

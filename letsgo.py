@@ -55,7 +55,10 @@ if __name__ == "__main__":
     print("Ready. Lets go")
 
     # Run the IMT Challenge
-    time.sleep(120)
+    start_time = time.time()
+    while time.time() - start_time < 120:
+        time.sleep(1)
+        runner.time_tick()
 
     for participant in participant_services:
         participant.cleanup()

@@ -6,8 +6,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from smm_client.missions import SMMMission
 from smm_client.organizations import SMMOrganization
 from smm_client.types import SMMPoint
+
 from services.helpers import get_random_string
 from configloader import load_config
 
@@ -15,7 +17,7 @@ if TYPE_CHECKING:
     from services.smm import SMMServer
     from smm_client.connection import SMMConnection
     from smm_client.assets import SMMAssetType
-    from smm_client.missions import SMMMission
+    from smm_client.missions import SMMMissionOrganization
 
 
 def smm_get_or_create_asset_type(
@@ -56,6 +58,7 @@ def sanitize_account_name(account: str) -> str:
 
 
 class MissionRunnerParticipant:
+    # pylint: disable=R0902
     """
     Manage a Participant in a Mission
     This keeps track of state of a current participants mission
@@ -64,8 +67,12 @@ class MissionRunnerParticipant:
         self.parent = parent
         self.smm = smm
         self.runner_password = get_random_string(12)
+        self.mission_id = None
+        self.assets = {}
         self.asset_accounts = {}
         self.organization_admins = {}
+        self.mission_org_list: list[SMMMissionOrganization] = []
+        self.current_assets = {}
 
     def get_user_account_asset(self, asset: str) -> object:
         """
@@ -114,6 +121,10 @@ class MissionRunnerParticipant:
             organization.name)
         org_asset_user.add_asset(asset_smm)
         organization.add_member(asset_smm_account, role='M')
+        self.assets[asset['name']] = {
+            'asset': asset_smm,
+            'connection': smm_asset,
+        }
 
     def add_assets(self) -> None:
         """
@@ -126,6 +137,13 @@ class MissionRunnerParticipant:
                 self.runner_password)
             for asset in self.parent.config['assets']:
                 self._setup_asset(asset, smm_admin, smm_imt_challenge)
+
+    def _add_asset_to_mission(self, asset_name: str) -> None:
+        """
+        Add a specific asset to the mission
+        """
+        mission = self._get_mission(self.assets[asset_name]['connection'])
+        mission.add_asset(self.assets[asset_name]['asset'])
 
     def _add_poi_to_mission(self, mission: SMMMission, poi: dict) -> bool:
         """
@@ -143,16 +161,23 @@ class MissionRunnerParticipant:
             return True
         return False
 
+    def _get_smm_imt_challenge(self):
+        """
+        Get the SMMConnection for the imt challenge runner account
+        """
+        return self.smm.get_web_connection(
+            'imt-challenge',
+            self.runner_password)
+
     def create_mission(self) -> None:
         """
         Create the mission and populate it with the starting data
         """
-        smm_imt_challenge = self.smm.get_web_connection(
-            'imt-challenge',
-            self.runner_password)
+        smm_imt_challenge = self._get_smm_imt_challenge()
         mission = smm_imt_challenge.create_mission(
             self.parent.config['name'],
             self.parent.config['description'])
+        self.mission_id = mission.id
         if 'POIs' in self.parent.config:
             for poi in self.parent.config['POIs']:
                 if not isinstance(poi, dict):
@@ -168,6 +193,37 @@ class MissionRunnerParticipant:
                 # Adding an organization is the trigger event to activate
                 # the related asset(s)
                 mission_org.set_can_add_organizations(value=True)
+
+    def _get_mission(self, conn: SMMConnection) -> SMMMission:
+        """
+        Get the specific mission we are monitoring
+        """
+        return SMMMission(conn, self.mission_id, self.parent.config['name'])
+
+    def check_added_organizations(self):
+        """
+        Check if any new organizations have been added to the mission
+        """
+        smm_imt_challenge = self._get_smm_imt_challenge()
+        mission = self._get_mission(smm_imt_challenge)
+        mission_orgs = mission.get_organizations()
+        if len(mission_orgs) > len(self.mission_org_list):
+            # New organization(s) have been added
+            new_orgs = []
+            for org in mission_orgs:
+                found = any(
+                    org.organization.name == org_have.organization.name
+                    for org_have in self.mission_org_list
+                )
+                if not found:
+                    new_orgs.append(org.organization)
+            # Might need to add assets in response to this
+            for asset in self.parent.config['assets']:
+                if asset['name'] not in self.current_assets:
+                    for org in new_orgs:
+                        if asset['organization'] == org.name:
+                            # Add this asset
+                            self._add_asset_to_mission(asset['name'])
 
 
 class MissionRunner:
@@ -193,3 +249,10 @@ class MissionRunner:
         """
         for participant in self.participants:
             participant.create_mission()
+
+    def time_tick(self) -> None:
+        """
+        Increment the mission time
+        """
+        for participant in self.participants:
+            participant.check_added_organizations()

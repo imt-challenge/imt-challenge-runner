@@ -19,6 +19,20 @@ if TYPE_CHECKING:
     from smm_client.assets import SMMAssetType
     from smm_client.missions import SMMMissionOrganization
 
+MAS_AWAITING_CREW = "Awaiting Crew"
+MAS_AWAITING_TASKING = "Awaiting Tasking"
+MAS_ENROUTE = "Enroute"
+MAS_SEARCHING = "Searching"
+MAS_INVESTIGATING = "Investigating"
+MAS_RTB = "Returning to Base"
+MISSION_ASSET_STATUSES = [
+    MAS_AWAITING_CREW,
+    MAS_AWAITING_TASKING,
+    MAS_ENROUTE,
+    MAS_SEARCHING,
+    MAS_INVESTIGATING,
+    MAS_RTB]
+
 
 def smm_get_or_create_asset_type(
         smm_conn: SMMConnection,
@@ -68,6 +82,7 @@ class MissionRunnerParticipant:
         self.smm = smm
         self.runner_password = get_random_string(12)
         self.mission_id = None
+        self.mission_asset_statuses = {}
         self.assets = {}
         self.asset_accounts = {}
         self.organization_admins = {}
@@ -91,6 +106,17 @@ class MissionRunnerParticipant:
         """
         smm_admin = self.smm.get_web_connection()
         smm_admin.create_user('imt-challenge', self.runner_password)
+
+    def setup_mission_asset_statuses(self):
+        """
+        Create the mission asset statuses in SMM
+        """
+        smm_admin = self.smm.get_web_connection()
+        for status in MISSION_ASSET_STATUSES:
+            self.mission_asset_statuses[status] = \
+                smm_admin.get_or_create_mission_asset_status_value(
+                    status,
+                    status)
 
     def _setup_asset(
             self,
@@ -144,6 +170,10 @@ class MissionRunnerParticipant:
         """
         mission = self._get_mission(self.assets[asset_name]['connection'])
         mission.add_asset(self.assets[asset_name]['asset'])
+        mission.set_asset_status(
+            self.assets[asset_name]['asset'],
+            self.mission_asset_statuses[MAS_AWAITING_CREW],
+            "")
 
     def _add_poi_to_mission(self, mission: SMMMission, poi: dict) -> bool:
         """
@@ -240,6 +270,7 @@ class MissionRunner:
         """
         participant = MissionRunnerParticipant(self, smm)
         participant.add_imt_login()
+        participant.setup_mission_asset_statuses()
         participant.add_assets()
         self.participants.append(participant)
 

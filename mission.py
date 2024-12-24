@@ -4,6 +4,8 @@ Mission Config and Control
 
 from __future__ import annotations
 
+import time
+
 from typing import TYPE_CHECKING
 
 from smm_client.missions import SMMMission
@@ -71,6 +73,51 @@ def sanitize_account_name(account: str) -> str:
     return account.lower().replace(' ', '.').replace('/', '.')
 
 
+class ParticipantAsset:
+    """
+    Asset for a specific participant
+    """
+    def __init__(self, parent, config, smm_asset, smm_connection) -> None:
+        self.parent = parent
+        self.config = config
+        self.smm_asset = smm_asset
+        self.smm_connection = smm_connection
+        self.added_time = None
+        self.launch_time = None
+
+    def add_to_mission(self) -> None:
+        """
+        Add this asset to a mission
+        """
+        mission = SMMMission(self.smm_connection, self.parent.mission_id, "")
+        mission.add_asset(self.smm_asset)
+        mission.set_asset_status(
+            self.smm_asset,
+            self.parent.mission_asset_statuses[MAS_AWAITING_CREW],
+            "")
+        self.added_time = time.time()
+
+    def time_tick(self):
+        """
+        Check if anything needs doing
+        """
+        if self.added_time is None:
+            return
+        if self.launch_time is None:
+            now = time.time()
+            if now - self.added_time \
+               >= (int(self.config['responseTimeMins']) * 60):
+                mission = SMMMission(
+                    self.smm_connection,
+                    self.parent.mission_id,
+                    "")
+                mission.set_asset_status(
+                    self.smm_asset,
+                    self.parent.mission_asset_statuses[MAS_AWAITING_TASKING],
+                    "")
+                self.launch_time = now
+
+
 class MissionRunnerParticipant:
     # pylint: disable=R0902
     """
@@ -83,11 +130,10 @@ class MissionRunnerParticipant:
         self.runner_password = get_random_string(12)
         self.mission_id = None
         self.mission_asset_statuses = {}
-        self.assets = {}
+        self.assets: dict[str, ParticipantAsset] = {}
         self.asset_accounts = {}
         self.organization_admins = {}
         self.mission_org_list: list[SMMMissionOrganization] = []
-        self.current_assets = {}
 
     def get_user_account_asset(self, asset: str) -> object:
         """
@@ -147,10 +193,11 @@ class MissionRunnerParticipant:
             organization.name)
         org_asset_user.add_asset(asset_smm)
         organization.add_member(asset_smm_account, role='M')
-        self.assets[asset['name']] = {
-            'asset': asset_smm,
-            'connection': smm_asset,
-        }
+        self.assets[asset['name']] = ParticipantAsset(
+            self,
+            asset,
+            asset_smm,
+            smm_asset)
 
     def add_assets(self) -> None:
         """
@@ -163,17 +210,6 @@ class MissionRunnerParticipant:
                 self.runner_password)
             for asset in self.parent.config['assets']:
                 self._setup_asset(asset, smm_admin, smm_imt_challenge)
-
-    def _add_asset_to_mission(self, asset_name: str) -> None:
-        """
-        Add a specific asset to the mission
-        """
-        mission = self._get_mission(self.assets[asset_name]['connection'])
-        mission.add_asset(self.assets[asset_name]['asset'])
-        mission.set_asset_status(
-            self.assets[asset_name]['asset'],
-            self.mission_asset_statuses[MAS_AWAITING_CREW],
-            "")
 
     def _add_poi_to_mission(self, mission: SMMMission, poi: dict) -> bool:
         """
@@ -249,11 +285,18 @@ class MissionRunnerParticipant:
                     new_orgs.append(org.organization)
             # Might need to add assets in response to this
             for asset in self.parent.config['assets']:
-                if asset['name'] not in self.current_assets:
+                if self.assets[asset['name']].added_time is None:
                     for org in new_orgs:
                         if asset['organization'] == org.name:
                             # Add this asset
-                            self._add_asset_to_mission(asset['name'])
+                            self.assets[asset['name']].add_to_mission()
+
+    def time_tick(self) -> None:
+        """
+        Do the required per-tick checks
+        """
+        for _, asset in self.assets.items():
+            asset.time_tick()
 
 
 class MissionRunner:
@@ -287,3 +330,4 @@ class MissionRunner:
         """
         for participant in self.participants:
             participant.check_added_organizations()
+            participant.time_tick()

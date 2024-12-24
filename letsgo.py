@@ -52,6 +52,9 @@ if __name__ == "__main__":
 
     runner.create_mission()
 
+    for participant in participant_services:
+        print(f"{participant.name}: http://localhost:{participant.smm.port}")
+
     print("Ready. Lets go")
 
     # Run the IMT Challenge

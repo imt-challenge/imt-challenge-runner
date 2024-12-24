@@ -11,10 +11,32 @@ import docker
 from instance import Participant
 from mission import MissionRunner
 
+
+def arg_is_positive(value) -> int:
+    """
+    Make sure the argument is positive
+    """
+    try:
+        ivalue = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"{value} needs to be a positive integer") from exc
+    if ivalue <= 0:
+        raise argparse.ArgumentTypeError(f"{value} must be positive")
+    return ivalue
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='imt-challenge-runner',
         description='Start and run an IMT challenge',
+    )
+    parser.add_argument(
+        '-t',
+        '--time',
+        default=120,
+        type=arg_is_positive,
+        help="Time IMT Challenge for (in seconds)"
     )
     parser.add_argument(
         '-m',
@@ -59,7 +81,7 @@ if __name__ == "__main__":
 
     # Run the IMT Challenge
     start_time = time.time()
-    while time.time() - start_time < 120:
+    while time.time() - start_time < args.time:
         time.sleep(1)
         runner.time_tick()
 

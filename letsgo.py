@@ -85,5 +85,7 @@ if __name__ == "__main__":
         time.sleep(1)
         runner.time_tick()
 
+    runner.stop()
+
     for participant in participant_services:
         participant.cleanup()

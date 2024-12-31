@@ -12,7 +12,8 @@ from smm_client.missions import SMMMission
 from smm_client.organizations import SMMOrganization
 from smm_client.types import SMMPoint
 
-from services.helpers import get_random_string
+from services.helpers import get_random_string, sanitize_account_name
+from services.vehicle import Vehicle
 from configloader import load_config
 
 if TYPE_CHECKING:
@@ -63,27 +64,30 @@ def smm_get_or_create_organization(
     return smm_conn.create_organization(org_name)
 
 
-def sanitize_account_name(account: str) -> str:
-    """
-    Turn an account name into something easier to use with smm
-    - lowercase
-    - no spaces
-    - no slashes
-    """
-    return account.lower().replace(' ', '.').replace('/', '.')
-
-
 class ParticipantAsset:
+    # pylint: disable=R0902
     """
     Asset for a specific participant
     """
-    def __init__(self, parent, config, smm_asset, smm_connection) -> None:
+    def __init__(
+        self,
+        parent,
+        config,
+        smm_asset,
+        smm_connection,
+        smm_username,
+        smm_password
+    ) -> None:
+        # pylint: disable=R0913,R0917
         self.parent = parent
         self.config = config
         self.smm_asset = smm_asset
         self.smm_connection = smm_connection
+        self.smm_username = smm_username
+        self.smm_password = smm_password
         self.added_time = None
         self.launch_time = None
+        self.vehicle = None
 
     def add_to_mission(self) -> None:
         """
@@ -96,6 +100,13 @@ class ParticipantAsset:
             self.parent.mission_asset_statuses[MAS_AWAITING_CREW],
             "")
         self.added_time = time.time()
+
+    def stop(self) -> None:
+        """
+        Stop/remove anything related to this asset
+        """
+        self.vehicle.stop()
+        self.vehicle = None
 
     def time_tick(self):
         """
@@ -116,6 +127,17 @@ class ParticipantAsset:
                     self.parent.mission_asset_statuses[MAS_AWAITING_TASKING],
                     "")
                 self.launch_time = now
+                self.vehicle = Vehicle(
+                    self.smm_asset.name,
+                    'Rover' if self.config['type'] == 'Boat'
+                    else 'Plane' if self.config['type'] == 'Aircraft'
+                    else 'Copter',
+                    self.parent.smm,
+                    self.smm_username,
+                    self.smm_password,
+                    lat=self.config['baseLocation']['latitude'],
+                    lon=self.config['baseLocation']['longitude'])
+                self.vehicle.start()
 
 
 class MissionRunnerParticipant:
@@ -197,7 +219,9 @@ class MissionRunnerParticipant:
             self,
             asset,
             asset_smm,
-            smm_asset)
+            smm_asset,
+            asset_account['username'],
+            asset_account['password'])
 
     def add_assets(self) -> None:
         """
@@ -291,6 +315,13 @@ class MissionRunnerParticipant:
                             # Add this asset
                             self.assets[asset['name']].add_to_mission()
 
+    def stop(self) -> None:
+        """
+        Stop/Cleanup anything related to this participant
+        """
+        for _, asset in self.assets.items():
+            asset.stop()
+
     def time_tick(self) -> None:
         """
         Do the required per-tick checks
@@ -323,6 +354,13 @@ class MissionRunner:
         """
         for participant in self.participants:
             participant.create_mission()
+
+    def stop(self) -> None:
+        """
+        Stop this mission
+        """
+        for participant in self.participants:
+            participant.stop()
 
     def time_tick(self) -> None:
         """

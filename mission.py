@@ -64,6 +64,51 @@ def smm_get_or_create_organization(
     return smm_conn.create_organization(org_name)
 
 
+class VehicleDocker:
+    """
+    Docker handler for vehicles
+    """
+    def __init__(self, config, smm, username, password):
+        self.config = config
+        self.smm = smm
+        self.username = username
+        self.password = password
+        self._vehicle = None
+
+    def _map_vehicle_type(self, type_name: str) -> str:
+        """
+        Convert a type name into a Ardupilot simulator type
+        """
+        if type_name == "Boat":
+            return "Rover"
+        if type_name == "Aircraft":
+            return "Plane"
+        return "Copter"
+
+    def start(self):
+        """
+        Start this vehicle
+        """
+        vehicle_type = self._map_vehicle_type(self.config['type'])
+        self._vehicle = Vehicle(
+            self.config['name'],
+            vehicle_type,
+            self.smm,
+            self.username,
+            self.password,
+            lat=self.config['baseLocation']['latitude'],
+            lon=self.config['baseLocation']['longitude'])
+        self._vehicle.start()
+
+    def stop(self):
+        """
+        Stop this vehicle
+        """
+        if self._vehicle:
+            self._vehicle.stop()
+            self._vehicle = None
+
+
 class ParticipantAsset:
     # pylint: disable=R0902
     """
@@ -87,7 +132,11 @@ class ParticipantAsset:
         self.smm_password = smm_password
         self.added_time = None
         self.launch_time = None
-        self.vehicle = None
+        self.vehicle_manager = VehicleDocker(
+            self.config,
+            self.parent.smm,
+            self.smm_username,
+            self.smm_password)
 
     def add_to_mission(self) -> None:
         """
@@ -105,39 +154,35 @@ class ParticipantAsset:
         """
         Stop/remove anything related to this asset
         """
-        self.vehicle.stop()
-        self.vehicle = None
+        self.vehicle_manager.stop()
+
+    def should_launch(self) -> bool:
+        """
+        Should this asset be launched now?
+        """
+        if self.added_time is None:
+            return False
+        if self.launch_time is not None:
+            return False
+        now = time.time()
+        return now - self.added_time >= \
+            (int(self.config['responseTimeMins']) * 60)
 
     def time_tick(self):
         """
         Check if anything needs doing
         """
-        if self.added_time is None:
-            return
-        if self.launch_time is None:
-            now = time.time()
-            if now - self.added_time \
-               >= (int(self.config['responseTimeMins']) * 60):
-                mission = SMMMission(
-                    self.smm_connection,
-                    self.parent.mission_id,
-                    "")
-                mission.set_asset_status(
-                    self.smm_asset,
-                    self.parent.mission_asset_statuses[MAS_AWAITING_TASKING],
-                    "")
-                self.launch_time = now
-                self.vehicle = Vehicle(
-                    self.smm_asset.name,
-                    'Rover' if self.config['type'] == 'Boat'
-                    else 'Plane' if self.config['type'] == 'Aircraft'
-                    else 'Copter',
-                    self.parent.smm,
-                    self.smm_username,
-                    self.smm_password,
-                    lat=self.config['baseLocation']['latitude'],
-                    lon=self.config['baseLocation']['longitude'])
-                self.vehicle.start()
+        if self.should_launch():
+            mission = SMMMission(
+                self.smm_connection,
+                self.parent.mission_id,
+                "")
+            mission.set_asset_status(
+                self.smm_asset,
+                self.parent.mission_asset_statuses[MAS_AWAITING_TASKING],
+                "")
+            self.launch_time = time.time()
+            self.vehicle_manager.start()
 
 
 class MissionRunnerParticipant:

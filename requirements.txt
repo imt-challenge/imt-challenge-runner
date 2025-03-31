@@ -4,5 +4,5 @@ smm-client==0.0.16
 PyYAML==6.0.2
 
 # code checking
-pycodestyle==2.12.1
+pycodestyle==2.13.0
 pylint==3.3.6

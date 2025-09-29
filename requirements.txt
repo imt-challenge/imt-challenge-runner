@@ -1,7 +1,7 @@
 # run-time depends
 docker==7.1.0
 smm-client==0.0.16
-PyYAML==6.0.2
+PyYAML==6.0.3
 
 # code checking
 pycodestyle==2.14.0

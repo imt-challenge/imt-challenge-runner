@@ -5,4 +5,4 @@ PyYAML==6.0.3
 
 # code checking
 pycodestyle==2.14.0
-pylint==3.3.9
+pylint==4.0.0

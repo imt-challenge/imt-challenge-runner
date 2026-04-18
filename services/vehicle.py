@@ -4,8 +4,10 @@ Vehicles
 import random
 
 import docker
+import docker.errors
 
-from services.helpers import sanitize_account_name
+from services.helpers import (
+    remove_container, remove_network, sanitize_account_name)
 
 
 class Vehicle:
@@ -96,8 +98,12 @@ class Vehicle:
 
     def stop(self):
         """
-        Stop the vehicle
+        Stop and tear down the vehicle containers and their private network.
+        Idempotent and tolerant of containers that never started or are
+        already removed.
         """
-        self.smm_mavlink.stop()
-        self.mavproxy.stop()
-        self.apm.stop()
+        for attr in ('smm_mavlink', 'mavproxy', 'apm'):
+            remove_container(getattr(self, attr, None))
+            setattr(self, attr, None)
+        remove_network(self.net)
+        self.net = None

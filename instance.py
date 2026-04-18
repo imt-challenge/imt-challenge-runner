@@ -49,10 +49,14 @@ class Participant:
         """
         Stop the services for this participant
         """
-        self.smm.stop()
+        if self.smm is not None:
+            self.smm.stop()
 
     def cleanup(self) -> None:
         """
-        Cleanup the services for this participant
+        Cleanup the services for this participant.
+        Safe to call if start() was never reached or only partially succeeded.
         """
-        self.smm.cleanup()
+        if self.smm is not None:
+            self.smm.cleanup()
+            self.smm = None

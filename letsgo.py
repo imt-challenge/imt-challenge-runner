@@ -4,6 +4,8 @@ Start an IMT Challenge based on a config file
 """
 
 import argparse
+import contextlib
+import signal
 import time
 
 import docker
@@ -24,6 +26,13 @@ def arg_is_positive(value) -> int:
     if ivalue <= 0:
         raise argparse.ArgumentTypeError(f"{value} must be positive")
     return ivalue
+
+
+def _install_signal_handlers() -> None:
+    def _handle(signum, _frame):
+        raise KeyboardInterrupt(f"Received signal {signum}")
+    signal.signal(signal.SIGINT, _handle)
+    signal.signal(signal.SIGTERM, _handle)
 
 
 if __name__ == "__main__":
@@ -49,8 +58,14 @@ if __name__ == "__main__":
         required=True,
         action='append',
         help='load participant details from file')
+    parser.add_argument(
+        '--keep',
+        action='store_true',
+        help='Skip teardown on exit so the operator can inspect state')
 
     args = parser.parse_args()
+
+    _install_signal_handlers()
 
     docker_client = docker.from_env()
 
@@ -60,32 +75,38 @@ if __name__ == "__main__":
         Participant(participant) for participant in args.participant
     ]
 
-    # Start all the services
-    for participant in participant_services:
-        participant.start(docker_client)
+    with contextlib.ExitStack() as cleanup_stack:
+        if not args.keep:
+            # ExitStack unwinds in reverse, so register participant cleanup
+            # first and runner.stop last — vehicle containers must go before
+            # the SMM networks they are attached to.
+            for participant in participant_services:
+                cleanup_stack.callback(participant.cleanup)
+            cleanup_stack.callback(runner.stop)
 
-    # Add each participant to the runner
-    for participant in participant_services:
-        runner.add_participant(participant.smm)
+        # Start all the services
+        for participant in participant_services:
+            participant.start(docker_client)
 
-    # Setup the participants in their server
-    for participant in participant_services:
-        participant.setup()
+        # Add each participant to the runner
+        for participant in participant_services:
+            runner.add_participant(participant.smm)
 
-    runner.create_mission()
+        # Setup the participants in their server
+        for participant in participant_services:
+            participant.setup()
 
-    for participant in participant_services:
-        print(f"{participant.name}: http://localhost:{participant.smm.port}")
+        runner.create_mission()
 
-    print("Ready. Lets go")
+        for participant in participant_services:
+            print(
+                f"{participant.name}: "
+                f"http://localhost:{participant.smm.port}")
 
-    # Run the IMT Challenge
-    start_time = time.time()
-    while time.time() - start_time < args.time:
-        time.sleep(1)
-        runner.time_tick()
+        print("Ready. Lets go")
 
-    runner.stop()
-
-    for participant in participant_services:
-        participant.cleanup()
+        # Run the IMT Challenge
+        start_time = time.time()
+        while time.time() - start_time < args.time:
+            time.sleep(1)
+            runner.time_tick()

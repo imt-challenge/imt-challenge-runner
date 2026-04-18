@@ -12,7 +12,7 @@ import docker.errors
 from smm_client.connection import SMMConnection
 
 from .postgres import PostgresServer
-from .helpers import get_random_string
+from .helpers import get_random_string, remove_container, remove_network
 
 
 class SMMServer:
@@ -25,6 +25,9 @@ class SMMServer:
         self.name = name
         self.external_network = network
         self.internal_port = 8080
+        self.db_net = None
+        self.postgres = None
+        self.instance = None
         try:
             self.db_net = docker_client.networks.get(f'{name}-net')
         except docker.errors.NotFound:
@@ -82,17 +85,26 @@ class SMMServer:
         """
         Stop this instance, and the related database server
         """
-        self.instance.stop()
-        self.postgres.stop()
+        if self.instance is not None:
+            try:
+                self.instance.stop()
+            except (docker.errors.NotFound, docker.errors.APIError):
+                pass
+        if self.postgres is not None:
+            self.postgres.stop()
 
     def cleanup(self) -> None:
         """
-        Cleanup from running this instance
+        Cleanup from running this instance.
+        Idempotent and tolerant of partial/failed starts.
         """
-        self.stop()
-        self.instance.remove()
-        self.postgres.cleanup()
-        self.db_net.remove()
+        remove_container(self.instance)
+        self.instance = None
+        if self.postgres is not None:
+            self.postgres.cleanup()
+            self.postgres = None
+        remove_network(self.db_net)
+        self.db_net = None
 
     def get_web_connection(
             self,

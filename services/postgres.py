@@ -4,7 +4,10 @@ Postgres server
 
 import time
 
-from .helpers import get_random_string
+import docker
+import docker.errors
+
+from .helpers import get_random_string, remove_container
 
 
 class PostgresServer:
@@ -16,6 +19,7 @@ class PostgresServer:
         self.postgres_pass = get_random_string(10)
         self.name = name
         self._db_name = db_name
+        self.instance = None
         docker_client.images.pull('postgis/postgis:17-3.5')
         self.instance = docker_client.containers.create(
             'postgis/postgis:17-3.5',
@@ -55,11 +59,17 @@ class PostgresServer:
         """
         Stop this instance
         """
-        self.instance.stop()
+        if self.instance is None:
+            return
+        try:
+            self.instance.stop()
+        except (docker.errors.NotFound, docker.errors.APIError):
+            pass
 
     def cleanup(self) -> None:
         """
-        Cleanup from running this instance
+        Cleanup from running this instance.
+        Safe to call even if start() was never reached.
         """
-        self.stop()
-        self.instance.remove()
+        remove_container(self.instance)
+        self.instance = None

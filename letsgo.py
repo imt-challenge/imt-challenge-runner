@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import logging
 import signal
 import sys
 import time
@@ -19,8 +20,11 @@ from configmodels import ConfigError
 from instance import Participant
 from mission import MissionRunner
 from services.helpers import pull_images
+from services.log import configure_logging
 from services.postgres import PostgresServer
 from services.smm import SMMServer
+
+log = logging.getLogger(__name__)
 
 
 def arg_is_positive(value: str) -> int:
@@ -71,8 +75,17 @@ if __name__ == "__main__":
         '--keep',
         action='store_true',
         help='Skip teardown on exit so the operator can inspect state')
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Enable DEBUG logging')
+    parser.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help='Suppress INFO logging (WARNING and above only)')
 
     args = parser.parse_args()
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     _install_signal_handlers()
 
@@ -82,7 +95,7 @@ if __name__ == "__main__":
             Participant(participant) for participant in args.participant
         ]
     except (ConfigError, ValueError) as exc:
-        print(exc, file=sys.stderr)
+        log.error("%s", exc)
         sys.exit(1)
 
     docker_client = docker.from_env()
@@ -122,11 +135,9 @@ if __name__ == "__main__":
 
         for participant in participant_services:
             assert participant.smm is not None
-            print(
-                f"{participant.name}: "
-                f"http://localhost:{participant.smm.port}")
+            log.info("%s: http://localhost:%s", participant.name, participant.smm.port)
 
-        print("Ready. Lets go")
+        log.info("Ready. Lets go")
 
         # Run the IMT Challenge
         start_time = time.time()

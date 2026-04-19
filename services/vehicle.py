@@ -4,6 +4,7 @@ Vehicles
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import docker
@@ -12,6 +13,8 @@ import docker.models.networks
 
 from services.helpers import (
     remove_container, remove_network, sanitize_account_name)
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from services.smm import SMMServer
@@ -93,14 +96,17 @@ class Vehicle:
         self.net.connect(self.smm_mavlink)
         assert smm_server.db_net is not None
         smm_server.db_net.connect(self.smm_mavlink)
+        log.debug("Created vehicle containers for %s", name)
 
     def start(self) -> None:
         """
         Start the vehicle
         """
+        log.info("Starting vehicle %s", self.prefix_name)
         self.apm.start()
         self.mavproxy.start()
         self.smm_mavlink.start()
+        log.debug("Vehicle %s containers started", self.prefix_name)
 
     def stop(self) -> None:
         """

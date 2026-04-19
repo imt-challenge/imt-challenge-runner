@@ -4,6 +4,7 @@ String helpers
 
 from __future__ import annotations
 
+import logging
 import secrets
 import string
 import time
@@ -15,6 +16,8 @@ import docker
 import docker.errors
 import docker.models.containers
 import docker.models.networks
+
+log = logging.getLogger(__name__)
 
 _SECRET_ALPHABET = string.ascii_letters + string.digits + "-_"
 
@@ -45,7 +48,7 @@ def remove_network(network: docker.models.networks.Network | None) -> None:
     except docker.errors.NotFound:
         pass
     except docker.errors.APIError as exc:
-        print(f"Skipping removal of network {network.name}: {exc}")
+        log.warning("Skipping removal of network %s: %s", network.name, exc)
 
 
 def get_random_string(length: int) -> str:
@@ -88,10 +91,12 @@ def pull_images(client: docker.DockerClient, images: list[str]) -> None:
     """
     Pull all images in parallel. Blocks until all pulls complete.
     """
+    log.info("Pulling %d image(s): %s", len(images), ", ".join(images))
     with ThreadPoolExecutor(max_workers=len(images)) as ex:
         futures = [ex.submit(client.images.pull, image) for image in images]
         for f in futures:
             f.result()
+    log.debug("All images pulled")
 
 
 def sanitize_account_name(account: str) -> str:

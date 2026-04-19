@@ -4,9 +4,12 @@ Mission Config and Control
 
 from __future__ import annotations
 
+import logging
 import time
 
 from typing import TYPE_CHECKING, Any, TypedDict
+
+log = logging.getLogger(__name__)
 
 from smm_client.missions import SMMMission
 from smm_client.organizations import SMMOrganization
@@ -159,6 +162,7 @@ class ParticipantAsset:
         """
         Add this asset to a mission
         """
+        log.info("Adding asset %s to mission", self.config.name)
         mission = SMMMission(self.smm_connection, self.parent.mission_id, "")
         mission.add_asset(self.smm_asset)
         mission.set_asset_status(
@@ -189,6 +193,7 @@ class ParticipantAsset:
         Check if anything needs doing
         """
         if self.should_launch():
+            log.info("Launching asset %s", self.config.name)
             mission = SMMMission(
                 self.smm_connection,
                 self.parent.mission_id,
@@ -398,6 +403,7 @@ class MissionRunner:
         """
         Add a participant
         """
+        log.info("Adding participant %s to mission runner", smm.name)
         participant = MissionRunnerParticipant(self, smm)
         participant.add_imt_login()
         participant.setup_mission_asset_statuses()
@@ -408,6 +414,7 @@ class MissionRunner:
         """
         Create the mission in participants server(s)
         """
+        log.info("Creating mission '%s'", self.config.name)
         for participant in self.participants:
             participant.create_mission()
 
@@ -415,8 +422,10 @@ class MissionRunner:
         """
         Stop this mission
         """
+        log.debug("Stopping mission runner")
         for participant in self.participants:
             participant.stop()
+        log.debug("Mission runner stopped")
 
     def time_tick(self) -> None:
         """

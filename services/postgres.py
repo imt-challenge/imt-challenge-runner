@@ -4,12 +4,16 @@ Postgres server
 
 from __future__ import annotations
 
+import logging
+
 import docker
 import docker.errors
 import docker.models.containers
 import docker.models.networks
 
 from .helpers import get_random_secret, remove_container, wait_until
+
+log = logging.getLogger(__name__)
 
 
 class PostgresServer:
@@ -39,6 +43,7 @@ class PostgresServer:
             ]
         )
         network.connect(self.instance)
+        log.debug("Created postgres container %s", name)
 
     def get_password(self) -> str:
         """
@@ -64,19 +69,34 @@ class PostgresServer:
         Wait for the postgres server to accept connections.
         Raises TimeoutError if the server is not ready in time.
         """
-        wait_until(
-            self._is_ready,
-            timeout=timeout,
-            interval=1.0,
-            description=f"postgres {self.name} to accept connections")
+        log.debug("Waiting for postgres %s to accept connections", self.name)
+        try:
+            wait_until(
+                self._is_ready,
+                timeout=timeout,
+                interval=1.0,
+                description=f"postgres {self.name} to accept connections")
+        except TimeoutError:
+            if self.instance is not None:
+                try:
+                    raw = self.instance.logs(tail=200)
+                    log.warning(
+                        "Postgres %s readiness timed out. Container logs:\n%s",
+                        self.name, raw.decode(errors='replace'))
+                except Exception:  # pylint: disable=broad-except
+                    pass
+            raise
+        log.debug("Postgres %s is ready", self.name)
 
     def start(self) -> None:
         """
         Start this instance
         """
         assert self.instance is not None
+        log.info("Starting postgres %s", self.name)
         self.instance.start()
         self._wait_for_startup()
+        log.info("Postgres %s ready", self.name)
 
     def stop(self) -> None:
         """
@@ -94,5 +114,7 @@ class PostgresServer:
         Cleanup from running this instance.
         Safe to call even if start() was never reached.
         """
+        log.debug("Cleaning up postgres %s", self.name)
         remove_container(self.instance)
         self.instance = None
+        log.debug("Postgres %s cleanup complete", self.name)

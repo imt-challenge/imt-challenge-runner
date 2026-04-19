@@ -14,7 +14,8 @@ from smm_client.types import SMMPoint
 
 from services.helpers import get_random_secret, sanitize_account_name
 from services.vehicle import Vehicle
-from configloader import load_config
+from configloader import load_mission_config
+from configmodels import AssetConfig, MissionConfig
 
 if TYPE_CHECKING:
     from services.smm import SMMServer
@@ -70,7 +71,7 @@ class VehicleDocker:
     """
     Docker handler for vehicles
     """
-    def __init__(self, config, smm, username, password):
+    def __init__(self, config: AssetConfig, smm, username, password):
         self.config = config
         self.smm = smm
         self.username = username
@@ -91,15 +92,15 @@ class VehicleDocker:
         """
         Start this vehicle
         """
-        vehicle_type = self._map_vehicle_type(self.config['type'])
+        vehicle_type = self._map_vehicle_type(self.config.type)
         self._vehicle = Vehicle(
-            self.config['name'],
+            self.config.name,
             vehicle_type,
             self.smm,
             self.username,
             self.password,
-            lat=self.config['baseLocation']['latitude'],
-            lon=self.config['baseLocation']['longitude'])
+            lat=self.config.base_location.latitude,
+            lon=self.config.base_location.longitude)
         self._vehicle.start()
 
     def stop(self):
@@ -119,7 +120,7 @@ class ParticipantAsset:
     def __init__(
         self,
         parent,
-        config,
+        config: AssetConfig,
         smm_asset,
         smm_connection,
         smm_username,
@@ -167,8 +168,7 @@ class ParticipantAsset:
         if self.launch_time is not None:
             return False
         now = time.time()
-        return now - self.added_time >= \
-            (int(self.config['responseTimeMins']) * 60)
+        return now - self.added_time >= (self.config.response_time_mins * 60)
 
     def time_tick(self):
         """
@@ -235,26 +235,26 @@ class MissionRunnerParticipant:
 
     def _setup_asset(
             self,
-            asset,
+            asset: AssetConfig,
             smm_admin,
             smm_imt_challenge) -> None:
         """
         Setup the asset in SMM
         """
-        asset_account = self.get_user_account_asset(asset['name'])
+        asset_account = self.get_user_account_asset(asset.name)
         asset_smm_account = smm_admin.create_user(
             asset_account['username'],
             asset_account['password'])
         asset_smm = smm_admin.create_asset(
             asset_smm_account,
-            asset['name'],
-            smm_get_or_create_asset_type(smm_admin, asset['type']))
+            asset.name,
+            smm_get_or_create_asset_type(smm_admin, asset.type))
         smm_asset = self.smm.get_web_connection(
             asset_account['username'],
             asset_account['password'])
         organization = smm_get_or_create_organization(
             smm_imt_challenge,
-            asset['organization'])
+            asset.organization)
         organization.add_member(asset_smm_account, role='A')
         org_asset_user = SMMOrganization(
             smm_asset,
@@ -262,7 +262,7 @@ class MissionRunnerParticipant:
             organization.name)
         org_asset_user.add_asset(asset_smm)
         organization.add_member(asset_smm_account, role='M')
-        self.assets[asset['name']] = ParticipantAsset(
+        self.assets[asset.name] = ParticipantAsset(
             self,
             asset,
             asset_smm,
@@ -274,27 +274,26 @@ class MissionRunnerParticipant:
         """
         Add the known assets into the SMM instance
         """
-        if 'assets' in self.parent.config:
+        if self.parent.config.assets:
             smm_admin = self.smm.get_web_connection()
             smm_imt_challenge = self.smm.get_web_connection(
                 'imt-challenge',
                 self.runner_password)
-            for asset in self.parent.config['assets']:
+            for asset in self.parent.config.assets:
                 self._setup_asset(asset, smm_admin, smm_imt_challenge)
 
-    def _add_poi_to_mission(self, mission: SMMMission, poi: dict) -> bool:
+    def _add_poi_to_mission(self, mission: SMMMission, poi) -> bool:
         """
         Add a POI to a mission
         """
-        location = poi.get('location')
+        location = poi.location
         if not isinstance(location, dict):
             return False
         point = None
         if 'latitude' in location and 'longitude' in location:
             point = SMMPoint(location['latitude'], location['longitude'])
-        name = poi.get('name')
-        if point is not None and name is not None:
-            mission.add_waypoint(point, name)
+        if point is not None:
+            mission.add_waypoint(point, poi.name)
             return True
         return False
 
@@ -312,14 +311,11 @@ class MissionRunnerParticipant:
         """
         smm_imt_challenge = self._get_smm_imt_challenge()
         mission = smm_imt_challenge.create_mission(
-            self.parent.config['name'],
-            self.parent.config['description'])
+            self.parent.config.name,
+            self.parent.config.description)
         self.mission_id = mission.id
-        if 'POIs' in self.parent.config:
-            for poi in self.parent.config['POIs']:
-                if not isinstance(poi, dict):
-                    continue
-                self._add_poi_to_mission(mission, poi)
+        for poi in self.parent.config.pois:
+            self._add_poi_to_mission(mission, poi)
 
         organisations = smm_imt_challenge.get_organizations(all_orgs=True)
         for organisation in organisations:
@@ -335,7 +331,7 @@ class MissionRunnerParticipant:
         """
         Get the specific mission we are monitoring
         """
-        return SMMMission(conn, self.mission_id, self.parent.config['name'])
+        return SMMMission(conn, self.mission_id, self.parent.config.name)
 
     def check_added_organizations(self):
         """
@@ -355,12 +351,11 @@ class MissionRunnerParticipant:
                 if not found:
                     new_orgs.append(org.organization)
             # Might need to add assets in response to this
-            for asset in self.parent.config['assets']:
-                if self.assets[asset['name']].added_time is None:
+            for asset in self.parent.config.assets:
+                if self.assets[asset.name].added_time is None:
                     for org in new_orgs:
-                        if asset['organization'] == org.name:
-                            # Add this asset
-                            self.assets[asset['name']].add_to_mission()
+                        if asset.organization == org.name:
+                            self.assets[asset.name].add_to_mission()
 
     def stop(self) -> None:
         """
@@ -381,8 +376,8 @@ class MissionRunner:
     """
     Runner for a Mission
     """
-    def __init__(self, filename) -> None:
-        self.config = load_config(filename)
+    def __init__(self, filename: str) -> None:
+        self.config: MissionConfig = load_mission_config(filename)
         self.participants = []
 
     def add_participant(self, smm: SMMServer) -> None:

@@ -6,10 +6,12 @@ Start an IMT Challenge based on a config file
 import argparse
 import contextlib
 import signal
+import sys
 import time
 
 import docker
 
+from configmodels import ConfigError
 from instance import Participant
 from mission import MissionRunner
 
@@ -67,13 +69,16 @@ if __name__ == "__main__":
 
     _install_signal_handlers()
 
+    try:
+        runner = MissionRunner(args.mission)
+        participant_services = [
+            Participant(participant) for participant in args.participant
+        ]
+    except (ConfigError, ValueError) as exc:
+        print(exc, file=sys.stderr)
+        sys.exit(1)
+
     docker_client = docker.from_env()
-
-    runner = MissionRunner(args.mission)
-
-    participant_services = [
-        Participant(participant) for participant in args.participant
-    ]
 
     with contextlib.ExitStack() as cleanup_stack:
         if not args.keep:

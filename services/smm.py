@@ -4,7 +4,8 @@ See: https://github.com/canterbury-air-patrol/search-management-map
 """
 
 import random
-import time
+import urllib.error
+import urllib.request
 
 import docker
 import docker.errors
@@ -12,7 +13,12 @@ import docker.errors
 from smm_client.connection import SMMConnection
 
 from .postgres import PostgresServer
-from .helpers import get_random_string, remove_container, remove_network
+from .helpers import (
+    get_random_string,
+    remove_container,
+    remove_network,
+    wait_until,
+)
 
 
 class SMMServer:
@@ -63,15 +69,28 @@ class SMMServer:
         if self.external_network is not None:
             self.external_network.connect(self.instance)
 
-    def _wait_for_web_startup(self) -> None:
+    def _is_web_ready(self) -> bool:
         """
-        Wait until the web server starts before continuing
+        Return True when an HTTP GET to the server returns any 2xx/3xx.
         """
-        for i in range(1, 120):
-            logs = self.instance.logs().decode()
-            if f"http://0.0.0.0:{self.internal_port}" in logs:
-                return
-            time.sleep(i)
+        try:
+            with urllib.request.urlopen(
+                    f'http://localhost:{self.port}/',
+                    timeout=2) as resp:
+                return 200 <= resp.status < 400
+        except (urllib.error.URLError, OSError):
+            return False
+
+    def _wait_for_web_startup(self, timeout: float = 120.0) -> None:
+        """
+        Wait until the web server accepts HTTP requests.
+        Raises TimeoutError if the server does not respond in time.
+        """
+        wait_until(
+            self._is_web_ready,
+            timeout=timeout,
+            interval=1.0,
+            description=f"SMM {self.name} web server on port {self.port}")
 
     def start(self) -> None:
         """

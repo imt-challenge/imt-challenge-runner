@@ -2,12 +2,10 @@
 Postgres server
 """
 
-import time
-
 import docker
 import docker.errors
 
-from .helpers import get_random_string, remove_container
+from .helpers import get_random_string, remove_container, wait_until
 
 
 class PostgresServer:
@@ -38,15 +36,27 @@ class PostgresServer:
         """
         return self.postgres_pass
 
-    def _wait_for_startup(self) -> None:
+    def _is_ready(self) -> bool:
         """
-        Wait for the postgres server to start
+        Return True once `pg_isready` reports the server accepts connections.
         """
-        for i in range(1, 120):
-            logs = self.instance.logs().decode()
-            if "ready for start up" in logs:
-                return
-            time.sleep(i)
+        try:
+            result = self.instance.exec_run(
+                ['pg_isready', '-U', 'postgres', '-d', self._db_name])
+        except docker.errors.APIError:
+            return False
+        return result.exit_code == 0
+
+    def _wait_for_startup(self, timeout: float = 120.0) -> None:
+        """
+        Wait for the postgres server to accept connections.
+        Raises TimeoutError if the server is not ready in time.
+        """
+        wait_until(
+            self._is_ready,
+            timeout=timeout,
+            interval=1.0,
+            description=f"postgres {self.name} to accept connections")
 
     def start(self) -> None:
         """

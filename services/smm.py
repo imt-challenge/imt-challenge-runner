@@ -5,6 +5,7 @@ See: https://github.com/canterbury-air-patrol/search-management-map
 
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 import docker
 import docker.errors
@@ -25,6 +26,8 @@ class SMMServer:
     """
     A Search Management Map Instance
     """
+    IMAGE = 'canterburyairpatrol/search-management-map:latest'
+
     def __init__(self, name: str, network, docker_client) -> None:
         self.port = None
         self.name = name
@@ -33,6 +36,7 @@ class SMMServer:
         self.db_net = None
         self.postgres = None
         self.instance = None
+        self.docker_client = docker_client
         try:
             self.db_net = docker_client.networks.get(f'{name}-net')
         except docker.errors.NotFound:
@@ -45,28 +49,6 @@ class SMMServer:
             'smm',
             docker_client)
         self.admin_password = get_random_secret(10)
-        docker_client.images.pull(
-            'canterburyairpatrol/search-management-map:latest')
-        self.instance = docker_client.containers.create(
-            'canterburyairpatrol/search-management-map:latest',
-            detach=True,
-            name=self.name,
-            environment=[
-                f'DB_HOST={self.postgres.name}',
-                f'DB_PASS={self.postgres.get_password()}',
-                'DB_USER=postgres',
-                'DB_NAME=smm',
-                'DJANGO_SUPERUSER_USERNAME=admin',
-                f'DJANGO_SUPERUSER_PASSWORD={self.admin_password}',
-                'DJANGO_SUPERUSER_EMAIL=me@example.com',
-            ],
-            ports={
-                f'{self.internal_port}/tcp': None,
-            },
-        )
-        self.db_net.connect(self.instance)
-        if self.external_network is not None:
-            self.external_network.connect(self.instance)
 
     def _is_web_ready(self) -> bool:
         """
@@ -93,9 +75,34 @@ class SMMServer:
 
     def start(self) -> None:
         """
-        Start this instance, and the related database server
+        Start this instance, and the related database server.
+        Postgres startup and SMM image pull run concurrently.
         """
-        self.postgres.start()
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            pg_future = ex.submit(self.postgres.start)
+            pull_future = ex.submit(self.docker_client.images.pull, self.IMAGE)
+            pg_future.result()
+            pull_future.result()
+        self.instance = self.docker_client.containers.create(
+            self.IMAGE,
+            detach=True,
+            name=self.name,
+            environment=[
+                f'DB_HOST={self.postgres.name}',
+                f'DB_PASS={self.postgres.get_password()}',
+                'DB_USER=postgres',
+                'DB_NAME=smm',
+                'DJANGO_SUPERUSER_USERNAME=admin',
+                f'DJANGO_SUPERUSER_PASSWORD={self.admin_password}',
+                'DJANGO_SUPERUSER_EMAIL=me@example.com',
+            ],
+            ports={
+                f'{self.internal_port}/tcp': None,
+            },
+        )
+        self.db_net.connect(self.instance)
+        if self.external_network is not None:
+            self.external_network.connect(self.instance)
         self.instance.start()
         self.instance.reload()
         port_bindings = self.instance.attrs['NetworkSettings']['Ports']

@@ -1,2 +1,10 @@
-/venv/
-__pycache__
+venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.idea/
+.vscode/
+.DS_Store

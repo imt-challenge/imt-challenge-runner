@@ -1,8 +1,6 @@
 """
 Vehicles
 """
-import random
-
 import docker
 import docker.errors
 
@@ -24,7 +22,6 @@ class Vehicle:
         password,
         lat=-43.5,
         lon=172.5,
-        idx=None
     ) -> None:
         docker_client = docker.from_env()
         self.prefix_name = f'{smm_server.name}_{sanitize_account_name(name)}'
@@ -34,8 +31,6 @@ class Vehicle:
             self.net = docker_client.networks.create(
                 f'ap_{self.prefix_name}-net',
                 driver='bridge')
-        self.ext_port = \
-            31000 + idx if idx is not None else random.randint(30000, 31000)
         self.apm = docker_client.containers.create(
             f'sparlane/ardupilot-sitl:{aircraft_type}-latest',
             detach=True,
@@ -68,7 +63,7 @@ class Vehicle:
                 'BATT_CAPACITY=100000',
             ],
             ports={
-                '5761/tcp': self.ext_port,
+                '5761/tcp': None,
             }
         )
         self.net.connect(self.mavproxy)

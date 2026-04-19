@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from smm_client.missions import SMMMission
 from smm_client.organizations import SMMOrganization
@@ -15,12 +15,12 @@ from smm_client.types import SMMPoint
 from services.helpers import get_random_secret, sanitize_account_name
 from services.vehicle import Vehicle
 from configloader import load_mission_config
-from configmodels import AssetConfig, MissionConfig
+from configmodels import AssetConfig, MissionConfig, POIConfig
 
 if TYPE_CHECKING:
     from services.smm import SMMServer
     from smm_client.connection import SMMConnection
-    from smm_client.assets import SMMAssetType
+    from smm_client.assets import SMMAsset, SMMAssetType
     from smm_client.missions import SMMMissionOrganization
 
 MAS_AWAITING_CREW = "Awaiting Crew"
@@ -71,12 +71,12 @@ class VehicleDocker:
     """
     Docker handler for vehicles
     """
-    def __init__(self, config: AssetConfig, smm, username, password):
+    def __init__(self, config: AssetConfig, smm: SMMServer, username: str, password: str) -> None:
         self.config = config
         self.smm = smm
         self.username = username
         self.password = password
-        self._vehicle = None
+        self._vehicle: Vehicle | None = None
 
     def _map_vehicle_type(self, type_name: str) -> str:
         """
@@ -88,7 +88,7 @@ class VehicleDocker:
             return "Plane"
         return "Copter"
 
-    def start(self):
+    def start(self) -> None:
         """
         Start this vehicle
         """
@@ -103,7 +103,7 @@ class VehicleDocker:
             lon=self.config.base_location.longitude)
         self._vehicle.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop this vehicle
         """
@@ -119,12 +119,12 @@ class ParticipantAsset:
     """
     def __init__(
         self,
-        parent,
+        parent: MissionRunnerParticipant,
         config: AssetConfig,
-        smm_asset,
-        smm_connection,
-        smm_username,
-        smm_password
+        smm_asset: SMMAsset,
+        smm_connection: SMMConnection,
+        smm_username: str,
+        smm_password: str,
     ) -> None:
         # pylint: disable=R0913,R0917
         self.parent = parent
@@ -133,8 +133,8 @@ class ParticipantAsset:
         self.smm_connection = smm_connection
         self.smm_username = smm_username
         self.smm_password = smm_password
-        self.added_time = None
-        self.launch_time = None
+        self.added_time: float | None = None
+        self.launch_time: float | None = None
         self.vehicle_manager = VehicleDocker(
             self.config,
             self.parent.smm,
@@ -170,7 +170,7 @@ class ParticipantAsset:
         now = time.time()
         return now - self.added_time >= (self.config.response_time_mins * 60)
 
-    def time_tick(self):
+    def time_tick(self) -> None:
         """
         Check if anything needs doing
         """
@@ -197,14 +197,14 @@ class MissionRunnerParticipant:
         self.parent = parent
         self.smm = smm
         self.runner_password = get_random_secret(12)
-        self.mission_id = None
-        self.mission_asset_statuses = {}
+        self.mission_id: int | None = None
+        self.mission_asset_statuses: dict[str, Any] = {}
         self.assets: dict[str, ParticipantAsset] = {}
-        self.asset_accounts = {}
-        self.organization_admins = {}
+        self.asset_accounts: dict[str, dict[str, str]] = {}
+        self.organization_admins: dict[str, Any] = {}
         self.mission_org_list: list[SMMMissionOrganization] = []
 
-    def get_user_account_asset(self, asset: str) -> object:
+    def get_user_account_asset(self, asset: str) -> dict[str, str]:
         """
         Get the user account for a specific asset
         """
@@ -222,7 +222,7 @@ class MissionRunnerParticipant:
         smm_admin = self.smm.get_web_connection()
         smm_admin.create_user('imt-challenge', self.runner_password)
 
-    def setup_mission_asset_statuses(self):
+    def setup_mission_asset_statuses(self) -> None:
         """
         Create the mission asset statuses in SMM
         """
@@ -236,8 +236,8 @@ class MissionRunnerParticipant:
     def _setup_asset(
             self,
             asset: AssetConfig,
-            smm_admin,
-            smm_imt_challenge) -> None:
+            smm_admin: SMMConnection,
+            smm_imt_challenge: SMMConnection) -> None:
         """
         Setup the asset in SMM
         """
@@ -282,7 +282,7 @@ class MissionRunnerParticipant:
             for asset in self.parent.config.assets:
                 self._setup_asset(asset, smm_admin, smm_imt_challenge)
 
-    def _add_poi_to_mission(self, mission: SMMMission, poi) -> bool:
+    def _add_poi_to_mission(self, mission: SMMMission, poi: POIConfig) -> bool:
         """
         Add a POI to a mission
         """
@@ -297,7 +297,7 @@ class MissionRunnerParticipant:
             return True
         return False
 
-    def _get_smm_imt_challenge(self):
+    def _get_smm_imt_challenge(self) -> SMMConnection:
         """
         Get the SMMConnection for the imt challenge runner account
         """
@@ -333,7 +333,7 @@ class MissionRunnerParticipant:
         """
         return SMMMission(conn, self.mission_id, self.parent.config.name)
 
-    def check_added_organizations(self):
+    def check_added_organizations(self) -> None:
         """
         Check if any new organizations have been added to the mission
         """
@@ -378,7 +378,7 @@ class MissionRunner:
     """
     def __init__(self, filename: str) -> None:
         self.config: MissionConfig = load_mission_config(filename)
-        self.participants = []
+        self.participants: list[MissionRunnerParticipant] = []
 
     def add_participant(self, smm: SMMServer) -> None:
         """

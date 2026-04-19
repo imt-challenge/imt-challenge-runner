@@ -2,8 +2,12 @@
 Postgres server
 """
 
+from __future__ import annotations
+
 import docker
 import docker.errors
+import docker.models.containers
+import docker.models.networks
 
 from .helpers import get_random_secret, remove_container, wait_until
 
@@ -15,11 +19,11 @@ class PostgresServer:
     """
     IMAGE = 'postgis/postgis:17-3.5'
 
-    def __init__(self, name, network, db_name, docker_client) -> None:
+    def __init__(self, name: str, network: docker.models.networks.Network, db_name: str, docker_client: docker.DockerClient) -> None:
         self.postgres_pass = get_random_secret(10)
         self.name = name
         self._db_name = db_name
-        self.instance = None
+        self.instance: docker.models.containers.Container | None
         self.instance = docker_client.containers.create(
             self.IMAGE,
             detach=True,
@@ -41,12 +45,14 @@ class PostgresServer:
         """
         Return True once `pg_isready` reports the server accepts connections.
         """
+        if self.instance is None:
+            return False
         try:
             result = self.instance.exec_run(
                 ['pg_isready', '-U', 'postgres', '-d', self._db_name])
         except docker.errors.APIError:
             return False
-        return result.exit_code == 0
+        return bool(result.exit_code == 0)
 
     def _wait_for_startup(self, timeout: float = 120.0) -> None:
         """
@@ -63,6 +69,7 @@ class PostgresServer:
         """
         Start this instance
         """
+        assert self.instance is not None
         self.instance.start()
         self._wait_for_startup()
 

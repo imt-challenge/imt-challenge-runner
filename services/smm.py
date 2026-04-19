@@ -3,12 +3,16 @@ Manage Instances of Search Management Map
 See: https://github.com/canterbury-air-patrol/search-management-map
 """
 
+from __future__ import annotations
+
 import os
 import urllib.error
 import urllib.request
 
 import docker
 import docker.errors
+import docker.models.containers
+import docker.models.networks
 
 from smm_client.connection import SMMConnection
 
@@ -33,16 +37,16 @@ class SMMServer:
     def __init__(
             self,
             name: str,
-            network,
-            docker_client,
+            network: docker.models.networks.Network | None,
+            docker_client: docker.DockerClient,
             admin_email: str | None = None) -> None:
-        self.port = None
+        self.port: int | None = None
         self.name = name
         self.external_network = network
         self.internal_port = 8080
-        self.db_net = None
-        self.postgres = None
-        self.instance = None
+        self.db_net: docker.models.networks.Network | None = None
+        self.postgres: PostgresServer | None = None
+        self.instance: docker.models.containers.Container | None = None
         self.docker_client = docker_client
         self.admin_email = (
             admin_email
@@ -70,7 +74,7 @@ class SMMServer:
             with urllib.request.urlopen(
                     f'http://localhost:{self.port}/',
                     timeout=2) as resp:
-                return 200 <= resp.status < 400
+                return bool(200 <= resp.status < 400)
         except (urllib.error.URLError, OSError):
             return False
 
@@ -90,6 +94,8 @@ class SMMServer:
         Start this instance, and the related database server.
         Images are pre-pulled by the caller; only postgres startup runs here.
         """
+        assert self.postgres is not None
+        assert self.db_net is not None
         self.postgres.start()
         self.instance = self.docker_client.containers.create(
             self.IMAGE,
@@ -145,8 +151,8 @@ class SMMServer:
 
     def get_web_connection(
             self,
-            username='admin',
-            password=None) -> SMMConnection:
+            username: str = 'admin',
+            password: str | None = None) -> SMMConnection:
         """
         Return an SMMConnection object connected to this server
         """

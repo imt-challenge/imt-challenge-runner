@@ -3,11 +3,14 @@
 Start an IMT Challenge based on a config file
 """
 
+from __future__ import annotations
+
 import argparse
 import contextlib
 import signal
 import sys
 import time
+import types
 from concurrent.futures import ThreadPoolExecutor
 
 import docker
@@ -20,7 +23,7 @@ from services.postgres import PostgresServer
 from services.smm import SMMServer
 
 
-def arg_is_positive(value) -> int:
+def arg_is_positive(value: str) -> int:
     """
     Make sure the argument is positive
     """
@@ -35,7 +38,7 @@ def arg_is_positive(value) -> int:
 
 
 def _install_signal_handlers() -> None:
-    def _handle(signum, _frame):
+    def _handle(signum: int, _frame: types.FrameType | None) -> None:
         raise KeyboardInterrupt(f"Received signal {signum}")
     signal.signal(signal.SIGINT, _handle)
     signal.signal(signal.SIGTERM, _handle)
@@ -106,6 +109,7 @@ if __name__ == "__main__":
 
         # Add each participant to the runner (serial — touches shared state)
         for participant in participant_services:
+            assert participant.smm is not None
             runner.add_participant(participant.smm)
 
         # Setup participant accounts in parallel
@@ -117,6 +121,7 @@ if __name__ == "__main__":
         runner.create_mission()
 
         for participant in participant_services:
+            assert participant.smm is not None
             print(
                 f"{participant.name}: "
                 f"http://localhost:{participant.smm.port}")

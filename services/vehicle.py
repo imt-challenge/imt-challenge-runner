@@ -1,11 +1,20 @@
 """
 Vehicles
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import docker
 import docker.errors
+import docker.models.networks
 
 from services.helpers import (
     remove_container, remove_network, sanitize_account_name)
+
+if TYPE_CHECKING:
+    from services.smm import SMMServer
 
 
 class Vehicle:
@@ -15,16 +24,17 @@ class Vehicle:
     # pylint: disable=R0913,R0917
     def __init__(
         self,
-        name,
-        aircraft_type,
-        smm_server,
-        username,
-        password,
-        lat=-43.5,
-        lon=172.5,
+        name: str,
+        aircraft_type: str,
+        smm_server: SMMServer,
+        username: str,
+        password: str,
+        lat: float = -43.5,
+        lon: float = 172.5,
     ) -> None:
         docker_client = docker.from_env()
         self.prefix_name = f'{smm_server.name}_{sanitize_account_name(name)}'
+        self.net: docker.models.networks.Network
         try:
             self.net = docker_client.networks.get(f'ap_{self.prefix_name}-net')
         except docker.errors.NotFound:
@@ -32,7 +42,7 @@ class Vehicle:
                 f'ap_{self.prefix_name}-net',
                 driver='bridge')
         self.apm = docker_client.containers.create(
-            f'sparlane/ardupilot-sitl:{aircraft_type}-latest',
+            f'sparlane/ardupilot-sitl:{aircraft_type}-master',
             detach=True,
             name=f'{self.prefix_name}_sitl',
             environment=[
@@ -81,9 +91,10 @@ class Vehicle:
             detach=True,
             name=f'{self.prefix_name}_smm_mavlink')
         self.net.connect(self.smm_mavlink)
+        assert smm_server.db_net is not None
         smm_server.db_net.connect(self.smm_mavlink)
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the vehicle
         """
@@ -91,7 +102,7 @@ class Vehicle:
         self.mavproxy.start()
         self.smm_mavlink.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop and tear down the vehicle containers and their private network.
         Idempotent and tolerant of containers that never started or are

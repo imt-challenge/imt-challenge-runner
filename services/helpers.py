@@ -2,7 +2,8 @@
 String helpers
 """
 
-import random
+from __future__ import annotations
+
 import secrets
 import string
 import time
@@ -11,11 +12,13 @@ from typing import Callable
 
 import docker
 import docker.errors
+import docker.models.containers
+import docker.models.networks
 
 _SECRET_ALPHABET = string.ascii_letters + string.digits + "-_"
 
 
-def remove_container(container) -> None:
+def remove_container(container: docker.models.containers.Container | None) -> None:
     """
     Force-remove a docker container, tolerating a container that was
     never started or has already been removed.
@@ -28,7 +31,7 @@ def remove_container(container) -> None:
         pass
 
 
-def remove_network(network) -> None:
+def remove_network(network: docker.models.networks.Network | None) -> None:
     """
     Remove a docker network, tolerating networks that have already been
     removed or still have endpoints attached.
@@ -43,7 +46,7 @@ def remove_network(network) -> None:
         print(f"Skipping removal of network {network.name}: {exc}")
 
 
-def get_random_string(length) -> str:
+def get_random_string(length: int) -> str:
     """
     Get a random string of ascii chars (non-secret, e.g. account names).
     """
@@ -79,7 +82,7 @@ def wait_until(
         time.sleep(min(interval, remaining))
 
 
-def pull_images(client, images: list) -> None:
+def pull_images(client: docker.DockerClient, images: list[str]) -> None:
     """
     Pull all images in parallel. Blocks until all pulls complete.
     """

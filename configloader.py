@@ -2,8 +2,10 @@
 Parser to load config for mission/participants
 """
 
+from __future__ import annotations
+
 import json
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -17,10 +19,10 @@ def load_config(filename: str) -> dict[str, Any]:
     """
     if filename.endswith('.yml') or filename.endswith('.yaml'):
         with open(filename, 'r', encoding='utf-8') as file:
-            return yaml.safe_load(file)
+            return cast(dict[str, Any], yaml.safe_load(file))
     if filename.endswith('.json'):
         with open(filename, 'r', encoding='utf-8') as file:
-            return json.load(file)
+            return cast(dict[str, Any], json.load(file))
     raise ValueError(
         f"{filename}: unsupported file extension"
         " (expected .yml, .yaml, or .json)")

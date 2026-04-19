@@ -2,6 +2,10 @@
 Classes to run an instance of IMT
 """
 
+from __future__ import annotations
+
+import docker
+
 from configloader import load_participant_config
 from configmodels import ParticipantConfig
 from services.smm import SMMServer
@@ -15,9 +19,9 @@ class Participant:
         config: ParticipantConfig = load_participant_config(filename)
         self.name = config.name
         self.members = config.members
-        self.smm = None
+        self.smm: SMMServer | None = None
 
-    def start(self, docker_client) -> None:
+    def start(self, docker_client: docker.DockerClient) -> None:
         """
         Start the services for this participant
         """
@@ -28,6 +32,7 @@ class Participant:
         """
         Setup the participant(s) accounts in this instance
         """
+        assert self.smm is not None
         smm_admin = self.smm.get_web_connection()
         imt_org = smm_admin.create_organization('IMT')
         for member in self.members:

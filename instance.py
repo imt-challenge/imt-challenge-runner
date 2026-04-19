@@ -2,7 +2,8 @@
 Classes to run an instance of IMT
 """
 
-from configloader import load_config
+from configloader import load_participant_config
+from configmodels import ParticipantConfig
 from services.smm import SMMServer
 
 
@@ -11,20 +12,10 @@ class Participant:
     State for a participant
     """
     def __init__(self, filename: str) -> None:
-        self.load_config(filename)
+        config: ParticipantConfig = load_participant_config(filename)
+        self.name = config.name
+        self.members = config.members
         self.smm = None
-
-    def load_config(self, filename: str) -> bool:
-        """
-        Load in the participant config
-        """
-        config = load_config(filename)
-        if config is None:
-            return False
-        # These inputs should get checked
-        self.name = config['name']
-        self.members = config['members']
-        return True
 
     def start(self, docker_client) -> None:
         """
@@ -41,8 +32,8 @@ class Participant:
         imt_org = smm_admin.create_organization('IMT')
         for member in self.members:
             user = smm_admin.create_user(
-                member['username'],
-                member['password'])
+                member.username,
+                member.password)
             imt_org.add_member(user)
 
     def stop(self) -> None:

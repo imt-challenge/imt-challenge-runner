@@ -1,5 +1,5 @@
 """
-Unit tests for services.helpers.wait_until.
+Unit tests for services.helpers.
 """
 
 import unittest
@@ -7,7 +7,12 @@ from contextlib import AbstractContextManager
 from typing import Any
 from unittest.mock import patch
 
-from services.helpers import get_random_secret, wait_until
+from services.helpers import (
+    get_random_secret,
+    get_random_string,
+    sanitize_account_name,
+    wait_until,
+)
 
 
 class FakeClock:
@@ -89,6 +94,40 @@ class WaitUntilTests(unittest.TestCase):
             with self.assertRaises(TimeoutError):
                 wait_until(lambda: False, timeout=2.5, interval=1)
         self.assertEqual(clock.sleeps, [1, 1, 0.5])
+
+
+class GetRandomStringTests(unittest.TestCase):
+    def test_length_is_exact(self) -> None:
+        for length in (1, 8, 32):
+            self.assertEqual(len(get_random_string(length)), length)
+
+    def test_only_lowercase_ascii(self) -> None:
+        result = get_random_string(100)
+        self.assertTrue(result.isalpha() and result.islower())
+
+    def test_strings_are_unique(self) -> None:
+        results = [get_random_string(16) for _ in range(10)]
+        self.assertGreater(len(set(results)), 1)
+
+
+class SanitizeAccountNameTests(unittest.TestCase):
+    def test_lowercases_name(self) -> None:
+        self.assertEqual(sanitize_account_name("MyTeam"), "myteam")
+
+    def test_replaces_spaces_with_dots(self) -> None:
+        self.assertEqual(sanitize_account_name("alpha bravo"), "alpha.bravo")
+
+    def test_replaces_slashes_with_dots(self) -> None:
+        self.assertEqual(sanitize_account_name("a/b"), "a.b")
+
+    def test_combined_transforms(self) -> None:
+        self.assertEqual(
+            sanitize_account_name("Alpha Boat/Team"),
+            "alpha.boat.team",
+        )
+
+    def test_already_clean(self) -> None:
+        self.assertEqual(sanitize_account_name("clean"), "clean")
 
 
 if __name__ == '__main__':

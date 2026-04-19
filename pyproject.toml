@@ -1,3 +1,10 @@
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "integration: spins up real Docker containers",
+]

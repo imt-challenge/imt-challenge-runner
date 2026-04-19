@@ -5,7 +5,7 @@ Postgres server
 import docker
 import docker.errors
 
-from .helpers import get_random_string, remove_container, wait_until
+from .helpers import get_random_secret, remove_container, wait_until
 
 
 class PostgresServer:
@@ -14,7 +14,7 @@ class PostgresServer:
     This server will have the postgis extension
     """
     def __init__(self, name, network, db_name, docker_client) -> None:
-        self.postgres_pass = get_random_string(10)
+        self.postgres_pass = get_random_secret()
         self.name = name
         self._db_name = db_name
         self.instance = None

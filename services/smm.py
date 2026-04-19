@@ -3,7 +3,6 @@ Manage Instances of Search Management Map
 See: https://github.com/canterbury-air-patrol/search-management-map
 """
 
-import random
 import urllib.error
 import urllib.request
 
@@ -27,7 +26,7 @@ class SMMServer:
     A Search Management Map Instance
     """
     def __init__(self, name: str, network, docker_client) -> None:
-        self.port = random.randint(20000, 65000)
+        self.port = None
         self.name = name
         self.external_network = network
         self.internal_port = 8080
@@ -62,7 +61,7 @@ class SMMServer:
                 'DJANGO_SUPERUSER_EMAIL=me@example.com',
             ],
             ports={
-                f'{self.internal_port}/tcp': self.port,
+                f'{self.internal_port}/tcp': None,
             },
         )
         self.db_net.connect(self.instance)
@@ -98,6 +97,10 @@ class SMMServer:
         """
         self.postgres.start()
         self.instance.start()
+        self.instance.reload()
+        port_bindings = self.instance.attrs['NetworkSettings']['Ports']
+        self.port = int(
+            port_bindings[f'{self.internal_port}/tcp'][0]['HostPort'])
         self._wait_for_web_startup()
 
     def stop(self) -> None:

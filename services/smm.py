@@ -14,7 +14,7 @@ from smm_client.connection import SMMConnection
 
 from .postgres import PostgresServer
 from .helpers import (
-    get_random_string,
+    get_random_secret,
     remove_container,
     remove_network,
     wait_until,
@@ -45,7 +45,7 @@ class SMMServer:
             self.db_net,
             'smm',
             docker_client)
-        self.admin_password = get_random_string(10)
+        self.admin_password = get_random_secret()
         docker_client.images.pull(
             'canterburyairpatrol/search-management-map:latest')
         self.instance = docker_client.containers.create(

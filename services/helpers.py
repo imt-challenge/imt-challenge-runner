@@ -3,6 +3,7 @@ String helpers
 """
 
 import random
+import secrets
 import string
 import time
 from typing import Callable
@@ -41,10 +42,17 @@ def remove_network(network) -> None:
 
 def get_random_string(length) -> str:
     """
-    Get a random string of ascii chargs
+    Get a random string of ascii chars (non-secret, e.g. account names).
     """
     return ''.join(
-        random.choice(string.ascii_lowercase) for _ in range(length))
+        secrets.choice(string.ascii_lowercase) for _ in range(length))
+
+
+def get_random_secret(nbytes: int = 24) -> str:
+    """
+    Generate a cryptographically secure URL-safe token (≥128 bits at default).
+    """
+    return secrets.token_urlsafe(nbytes)
 
 
 def wait_until(

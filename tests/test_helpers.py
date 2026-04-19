@@ -5,7 +5,7 @@ Unit tests for services.helpers.wait_until.
 import unittest
 from unittest.mock import patch
 
-from services.helpers import wait_until
+from services.helpers import get_random_secret, wait_until
 
 
 class FakeClock:
@@ -23,6 +23,21 @@ class FakeClock:
     def sleep(self, seconds: float) -> None:
         self.sleeps.append(seconds)
         self.now += seconds
+
+
+class GetRandomSecretTests(unittest.TestCase):
+    def test_secrets_are_unique(self) -> None:
+        secrets = [get_random_secret() for _ in range(10)]
+        self.assertEqual(len(set(secrets)), 10)
+
+    def test_default_length_meets_entropy_requirement(self) -> None:
+        # secrets.token_urlsafe(24) produces 32 URL-safe characters (≥128 bits)
+        secret = get_random_secret()
+        self.assertGreaterEqual(len(secret), 22)
+
+    def test_custom_nbytes(self) -> None:
+        secret = get_random_secret(nbytes=32)
+        self.assertGreaterEqual(len(secret), 22)
 
 
 class WaitUntilTests(unittest.TestCase):

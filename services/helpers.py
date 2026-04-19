@@ -6,6 +6,7 @@ import random
 import secrets
 import string
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
 import docker
@@ -76,6 +77,16 @@ def wait_until(
             raise TimeoutError(
                 f"Timed out after {timeout:.0f}s waiting for {description}")
         time.sleep(min(interval, remaining))
+
+
+def pull_images(client, images: list) -> None:
+    """
+    Pull all images in parallel. Blocks until all pulls complete.
+    """
+    with ThreadPoolExecutor(max_workers=len(images)) as ex:
+        futures = [ex.submit(client.images.pull, image) for image in images]
+        for f in futures:
+            f.result()
 
 
 def sanitize_account_name(account: str) -> str:

@@ -8,12 +8,16 @@ import contextlib
 import signal
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import docker
 
 from configmodels import ConfigError
 from instance import Participant
 from mission import MissionRunner
+from services.helpers import pull_images
+from services.postgres import PostgresServer
+from services.smm import SMMServer
 
 
 def arg_is_positive(value) -> int:
@@ -80,6 +84,9 @@ if __name__ == "__main__":
 
     docker_client = docker.from_env()
 
+    n_workers = max(4, len(participant_services))
+    pull_images(docker_client, [PostgresServer.IMAGE, SMMServer.IMAGE])
+
     with contextlib.ExitStack() as cleanup_stack:
         if not args.keep:
             # ExitStack unwinds in reverse, so register participant cleanup
@@ -89,17 +96,23 @@ if __name__ == "__main__":
                 cleanup_stack.callback(participant.cleanup)
             cleanup_stack.callback(runner.stop)
 
-        # Start all the services
-        for participant in participant_services:
-            participant.start(docker_client)
+        # Start all participant services in parallel
+        with ThreadPoolExecutor(max_workers=n_workers) as ex:
+            futures = [
+                ex.submit(p.start, docker_client) for p in participant_services
+            ]
+            for f in futures:
+                f.result()
 
-        # Add each participant to the runner
+        # Add each participant to the runner (serial — touches shared state)
         for participant in participant_services:
             runner.add_participant(participant.smm)
 
-        # Setup the participants in their server
-        for participant in participant_services:
-            participant.setup()
+        # Setup participant accounts in parallel
+        with ThreadPoolExecutor(max_workers=n_workers) as ex:
+            futures = [ex.submit(p.setup) for p in participant_services]
+            for f in futures:
+                f.result()
 
         runner.create_mission()
 

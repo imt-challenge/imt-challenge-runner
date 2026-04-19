@@ -13,14 +13,15 @@ class PostgresServer:
     Run a postgresql server in a docker container
     This server will have the postgis extension
     """
+    IMAGE = 'postgis/postgis:17-3.5'
+
     def __init__(self, name, network, db_name, docker_client) -> None:
         self.postgres_pass = get_random_secret(10)
         self.name = name
         self._db_name = db_name
         self.instance = None
-        docker_client.images.pull('postgis/postgis:17-3.5')
         self.instance = docker_client.containers.create(
-            'postgis/postgis:17-3.5',
+            self.IMAGE,
             detach=True,
             name=name,
             environment=[

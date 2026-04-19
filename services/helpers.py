@@ -4,6 +4,8 @@ String helpers
 
 import random
 import string
+import time
+from typing import Callable
 
 import docker
 import docker.errors
@@ -43,6 +45,27 @@ def get_random_string(length) -> str:
     """
     return ''.join(
         random.choice(string.ascii_lowercase) for _ in range(length))
+
+
+def wait_until(
+        predicate: Callable[[], bool],
+        timeout: float = 120.0,
+        interval: float = 1.0,
+        description: str = "condition") -> None:
+    """
+    Poll `predicate()` until it returns truthy, or raise TimeoutError
+    once `timeout` seconds have elapsed. Sleeps `interval` seconds
+    between polls.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        if predicate():
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(
+                f"Timed out after {timeout:.0f}s waiting for {description}")
+        time.sleep(min(interval, remaining))
 
 
 def sanitize_account_name(account: str) -> str:

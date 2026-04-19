@@ -10,3 +10,7 @@ Run an IMT Challenge
     ./letsgo.py -m <mission-file> -p <participant-file>
 
 There can be one or more participants in the same mission, each participant will get their own instance of the mission.
+
+## License
+
+[LICENSE](LICENSE)

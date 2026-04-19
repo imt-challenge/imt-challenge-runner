@@ -3,9 +3,9 @@ Manage Instances of Search Management Map
 See: https://github.com/canterbury-air-patrol/search-management-map
 """
 
+import os
 import urllib.error
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
 
 import docker
 import docker.errors
@@ -28,7 +28,14 @@ class SMMServer:
     """
     IMAGE = 'canterburyairpatrol/search-management-map:latest'
 
-    def __init__(self, name: str, network, docker_client) -> None:
+    DEFAULT_ADMIN_EMAIL = 'imt-challenge@example.invalid'
+
+    def __init__(
+            self,
+            name: str,
+            network,
+            docker_client,
+            admin_email: str | None = None) -> None:
         self.port = None
         self.name = name
         self.external_network = network
@@ -37,6 +44,11 @@ class SMMServer:
         self.postgres = None
         self.instance = None
         self.docker_client = docker_client
+        self.admin_email = (
+            admin_email
+            or os.environ.get('IMT_ADMIN_EMAIL')
+            or self.DEFAULT_ADMIN_EMAIL
+        )
         try:
             self.db_net = docker_client.networks.get(f'{name}-net')
         except docker.errors.NotFound:
@@ -76,13 +88,9 @@ class SMMServer:
     def start(self) -> None:
         """
         Start this instance, and the related database server.
-        Postgres startup and SMM image pull run concurrently.
+        Images are pre-pulled by the caller; only postgres startup runs here.
         """
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            pg_future = ex.submit(self.postgres.start)
-            pull_future = ex.submit(self.docker_client.images.pull, self.IMAGE)
-            pg_future.result()
-            pull_future.result()
+        self.postgres.start()
         self.instance = self.docker_client.containers.create(
             self.IMAGE,
             detach=True,
@@ -94,7 +102,7 @@ class SMMServer:
                 'DB_NAME=smm',
                 'DJANGO_SUPERUSER_USERNAME=admin',
                 f'DJANGO_SUPERUSER_PASSWORD={self.admin_password}',
-                'DJANGO_SUPERUSER_EMAIL=me@example.com',
+                f'DJANGO_SUPERUSER_EMAIL={self.admin_email}',
             ],
             ports={
                 f'{self.internal_port}/tcp': None,

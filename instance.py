@@ -28,7 +28,7 @@ class Participant:
         except ValueError as exc:
             raise ConfigError(
                 f"{filename}: participant name {config.name!r} cannot be "
-                "used as a Docker resource name") from exc
+                f"used as a Docker resource name: {exc}") from exc
         self.members = config.members
         self.smm: SMMServer | None = None
 

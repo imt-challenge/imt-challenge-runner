@@ -48,6 +48,12 @@ def _install_signal_handlers() -> None:
     signal.signal(signal.SIGTERM, _handle)
 
 
+def _require_smm(participant: Participant) -> SMMServer:
+    if participant.smm is None:
+        raise RuntimeError(f"Participant {participant.name} has not been started")
+    return participant.smm
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='imt-challenge-runner',
@@ -123,8 +129,7 @@ if __name__ == "__main__":
 
         # Add each participant to the runner (serial — touches shared state)
         for participant in participant_services:
-            assert participant.smm is not None
-            runner.add_participant(participant.smm)
+            runner.add_participant(_require_smm(participant))
 
         # Setup participant accounts in parallel
         with ThreadPoolExecutor(max_workers=n_workers) as ex:
@@ -135,11 +140,11 @@ if __name__ == "__main__":
         runner.create_mission()
 
         for participant in participant_services:
-            assert participant.smm is not None
+            smm = _require_smm(participant)
             log.info(
                 "%s: http://localhost:%s",
                 participant.name,
-                participant.smm.port)
+                smm.port)
 
         log.info("Ready. Lets go")
 

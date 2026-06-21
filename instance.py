@@ -44,7 +44,8 @@ class Participant:
         """
         Setup the participant(s) accounts in this instance
         """
-        assert self.smm is not None
+        if self.smm is None:
+            raise RuntimeError(f"Participant {self.name} has not been started")
         log.info("Setting up accounts for participant %s", self.name)
         smm_admin = self.smm.get_web_connection()
         imt_org = smm_admin.create_organization('IMT')

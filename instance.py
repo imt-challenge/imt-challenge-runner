@@ -9,7 +9,7 @@ import logging
 import docker
 
 from configloader import load_participant_config
-from configmodels import ParticipantConfig
+from configmodels import ConfigError, ParticipantConfig
 from services.helpers import sanitize_docker_name
 from services.smm import SMMServer
 
@@ -23,7 +23,12 @@ class Participant:
     def __init__(self, filename: str) -> None:
         config: ParticipantConfig = load_participant_config(filename)
         self.name = config.name
-        self.service_name = sanitize_docker_name(config.name)
+        try:
+            self.service_name = sanitize_docker_name(config.name)
+        except ValueError as exc:
+            raise ConfigError(
+                f"{filename}: participant name {config.name!r} cannot be "
+                "used as a Docker resource name") from exc
         self.members = config.members
         self.smm: SMMServer | None = None
 

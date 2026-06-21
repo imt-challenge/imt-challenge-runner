@@ -20,5 +20,9 @@ def test_invalid_participant_docker_name_has_file_context(
             ConfigError,
             match=(
                 "participant.yaml: participant name '///' cannot be used "
-                "as a Docker resource name")):
+                "as a Docker resource name: '///' must contain at least one "
+                "Docker-safe character")) as excinfo:
         Participant("participant.yaml")
+    assert isinstance(excinfo.value.__cause__, ValueError)
+    assert str(excinfo.value.__cause__) == (
+        "'///' must contain at least one Docker-safe character")

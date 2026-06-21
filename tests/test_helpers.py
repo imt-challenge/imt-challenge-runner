@@ -5,11 +5,15 @@ Unit tests for services.helpers.
 import unittest
 from contextlib import AbstractContextManager
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import docker.errors
 
 from services.helpers import (
     get_random_secret,
     get_random_string,
+    pull_images,
+    remove_network,
     sanitize_account_name,
     sanitize_docker_name,
     wait_until,
@@ -31,6 +35,58 @@ class FakeClock:
     def sleep(self, seconds: float) -> None:
         self.sleeps.append(seconds)
         self.now += seconds
+
+
+class FakeResponse:
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
+
+
+class RemoveNetworkTests(unittest.TestCase):
+    def test_ignores_not_found(self) -> None:
+        network = MagicMock()
+        network.remove.side_effect = docker.errors.NotFound("gone")
+
+        remove_network(network)
+
+        network.remove.assert_called_once()
+
+    def test_ignores_endpoint_conflict(self) -> None:
+        network = MagicMock()
+        network.remove.side_effect = docker.errors.APIError(
+            "active endpoints",
+            response=FakeResponse(409))
+
+        remove_network(network)
+
+        network.remove.assert_called_once()
+
+    def test_reraises_unexpected_api_errors(self) -> None:
+        network = MagicMock()
+        network.remove.side_effect = docker.errors.APIError(
+            "server exploded",
+            response=FakeResponse(500))
+
+        with self.assertRaises(docker.errors.APIError):
+            remove_network(network)
+
+
+class PullImagesTests(unittest.TestCase):
+    def test_empty_image_list_does_not_create_executor(self) -> None:
+        client = MagicMock()
+
+        pull_images(client, [])
+
+        client.images.pull.assert_not_called()
+
+    def test_pulls_each_image(self) -> None:
+        client = MagicMock()
+
+        pull_images(client, ["one", "two"])
+
+        client.images.pull.assert_any_call("one")
+        client.images.pull.assert_any_call("two")
+        self.assertEqual(client.images.pull.call_count, 2)
 
 
 class GetRandomSecretTests(unittest.TestCase):

@@ -46,7 +46,10 @@ class Participant:
                 member.username,
                 member.password)
             imt_org.add_member(user)
-            log.debug("Created user %s for participant %s", member.username, self.name)
+            log.debug(
+                "Created user %s for participant %s",
+                member.username,
+                self.name)
 
     def stop(self) -> None:
         """

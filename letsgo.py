@@ -135,7 +135,10 @@ if __name__ == "__main__":
 
         for participant in participant_services:
             assert participant.smm is not None
-            log.info("%s: http://localhost:%s", participant.name, participant.smm.port)
+            log.info(
+                "%s: http://localhost:%s",
+                participant.name,
+                participant.smm.port)
 
         log.info("Ready. Lets go")
 

@@ -2,6 +2,7 @@
 Manage Instances of Search Management Map
 See: https://github.com/canterbury-air-patrol/search-management-map
 """
+# pylint: disable=duplicate-code
 
 from __future__ import annotations
 
@@ -15,17 +16,17 @@ import docker.errors
 import docker.models.containers
 import docker.models.networks
 
-log = logging.getLogger(__name__)
-
 from smm_client.connection import SMMConnection
 
-from .postgres import PostgresServer
 from .helpers import (
     get_random_secret,
     remove_container,
     remove_network,
     wait_until,
 )
+from .postgres import PostgresServer
+
+log = logging.getLogger(__name__)
 
 
 class SMMServer:
@@ -87,7 +88,10 @@ class SMMServer:
         Wait until the web server accepts HTTP requests.
         Raises TimeoutError if the server does not respond in time.
         """
-        log.debug("Waiting for SMM %s web server on port %s", self.name, self.port)
+        log.debug(
+            "Waiting for SMM %s web server on port %s",
+            self.name,
+            self.port)
         try:
             wait_until(
                 self._is_web_ready,

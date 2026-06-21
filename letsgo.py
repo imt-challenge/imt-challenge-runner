@@ -48,9 +48,23 @@ def _install_signal_handlers() -> None:
     signal.signal(signal.SIGTERM, _handle)
 
 
-def _start_participant(participant: Participant) -> None:
-    docker_client = docker.from_env()
-    participant.start(docker_client)
+def _start_participant(participant_service: Participant) -> None:
+    try:
+        participant_client = docker.from_env()
+    except Exception:  # pylint: disable=broad-exception-caught
+        log.exception(
+            "Failed to create Docker client for participant %s",
+            participant_service.name)
+        raise
+    try:
+        participant_service.start(participant_client)
+    except Exception:  # pylint: disable=broad-exception-caught
+        log.exception(
+            "Failed to start participant %s",
+            participant_service.name)
+        raise
+    finally:
+        participant_client.close()
 
 
 if __name__ == "__main__":

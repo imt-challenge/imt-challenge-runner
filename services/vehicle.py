@@ -62,6 +62,8 @@ class Vehicle:
                     "Error during vehicle cleanup after failed creation: %s",
                     name)
             raise
+        finally:
+            docker_client.close()
         log.debug("Created vehicle containers for %s", name)
 
     # pylint: disable=R0913,R0917

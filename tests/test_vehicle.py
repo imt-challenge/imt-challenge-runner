@@ -40,6 +40,7 @@ def test_vehicle_constructor_cleans_up_partial_create(
     apm.remove.assert_called_once_with(force=True)
     mavproxy.remove.assert_called_once_with(force=True)
     net.remove.assert_called_once_with()
+    docker_client.close.assert_called_once_with()
 
 
 def test_vehicle_constructor_preserves_create_failure_when_cleanup_fails(
@@ -62,6 +63,21 @@ def test_vehicle_constructor_preserves_create_failure_when_cleanup_fails(
         Vehicle("Alpha Boat", "Rover", _smm_server(), "user", "pass")
 
     assert excinfo.value is original_error
+    docker_client.close.assert_called_once_with()
+
+
+def test_vehicle_constructor_closes_docker_client(
+        mocker: MagicMock) -> None:
+    docker_client = MagicMock()
+    docker_client.networks.get.return_value = MagicMock()
+    docker_client.containers.create.return_value = MagicMock()
+    mocker.patch(
+        "services.vehicle.docker.from_env",
+        return_value=docker_client)
+
+    Vehicle("Alpha Boat", "Rover", _smm_server(), "user", "pass")
+
+    docker_client.close.assert_called_once_with()
 
 
 def test_vehicle_start_requires_created_containers() -> None:

@@ -55,10 +55,17 @@ class WaitUntilTests(unittest.TestCase):
     def test_raises_timeout_when_deadline_passes(self) -> None:
         clock = FakeClock()
         with self._patch_clock(clock):
-            with self.assertRaises(TimeoutError):
-                wait_until(lambda: False, timeout=5, interval=1)
+            with self.assertRaises(TimeoutError) as cm:
+                wait_until(
+                    lambda: False,
+                    timeout=5,
+                    interval=1,
+                    description="waiting for condition")
         # 5 sleeps of 1 second each exhaust the budget
         self.assertEqual(sum(clock.sleeps), 5)
+        message = str(cm.exception)
+        self.assertIn("5s", message)
+        self.assertIn("waiting for condition", message)
 
     def test_final_sleep_clipped_to_remaining_budget(self) -> None:
         clock = FakeClock()

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from configmodels import ConfigError, ParticipantConfig
-from instance import Participant
+from instance import Participant, ServiceNotStartedError, require_smm
 
 
 def test_invalid_participant_docker_name_has_file_context(
@@ -26,3 +26,22 @@ def test_invalid_participant_docker_name_has_file_context(
     assert isinstance(excinfo.value.__cause__, ValueError)
     assert str(excinfo.value.__cause__) == (
         "'///' must contain at least one Docker-safe character")
+
+
+def test_require_smm_returns_started_service() -> None:
+    participant = object.__new__(Participant)
+    participant.name = "Team Alpha"
+    participant.smm = MagicMock()
+
+    assert require_smm(participant) is participant.smm
+
+
+def test_require_smm_raises_specific_error_when_not_started() -> None:
+    participant = object.__new__(Participant)
+    participant.name = "Team Alpha"
+    participant.smm = None
+
+    with pytest.raises(
+            ServiceNotStartedError,
+            match="Participant Team Alpha has not been started"):
+        require_smm(participant)

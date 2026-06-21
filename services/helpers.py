@@ -138,6 +138,7 @@ def wait_until(
 def pull_images(client: docker.DockerClient, images: list[str]) -> None:
     """
     Pull all images in parallel. Blocks until all pulls complete.
+    The shared Docker client is only used for independent image pull calls.
     """
     if not images:
         log.debug("No images to pull")

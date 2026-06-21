@@ -48,6 +48,11 @@ def _install_signal_handlers() -> None:
     signal.signal(signal.SIGTERM, _handle)
 
 
+def _start_participant(participant: Participant) -> None:
+    docker_client = docker.from_env()
+    participant.start(docker_client)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='imt-challenge-runner',
@@ -116,7 +121,7 @@ if __name__ == "__main__":
         # Start all participant services in parallel
         with ThreadPoolExecutor(max_workers=n_workers) as ex:
             futures = [
-                ex.submit(p.start, docker_client) for p in participant_services
+                ex.submit(_start_participant, p) for p in participant_services
             ]
             for f in futures:
                 f.result()

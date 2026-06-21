@@ -69,6 +69,28 @@ class TestLoadConfig:
         with pytest.raises(FileNotFoundError):
             load_config(str(tmp_path / "nonexistent.yaml"))
 
+    def test_empty_yaml_raises_config_error(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "cfg.yaml"
+        path.write_text("", encoding="utf-8")
+        with pytest.raises(ConfigError, match="config root must be an object"):
+            load_config(str(path))
+
+    def test_scalar_yaml_raises_config_error(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        path = _write(tmp_path, "cfg.yaml", "not a mapping")
+        with pytest.raises(ConfigError, match="config root must be an object"):
+            load_config(path)
+
+    def test_scalar_json_raises_config_error(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        path = _write(tmp_path, "cfg.json", ["not", "a", "mapping"])
+        with pytest.raises(ConfigError, match="config root must be an object"):
+            load_config(path)
+
 
 class TestLoadMissionConfig:
     def test_valid_mission(self, tmp_path: pathlib.Path) -> None:
@@ -105,6 +127,20 @@ class TestLoadMissionConfig:
         with pytest.raises(ConfigError, match="assets is required"):
             load_mission_config(path)
 
+    def test_assets_must_be_list(self, tmp_path: pathlib.Path) -> None:
+        data = dict(MINIMAL_MISSION, assets={})
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(ConfigError, match="assets must be a list"):
+            load_mission_config(path)
+
+    def test_asset_must_be_object(self, tmp_path: pathlib.Path) -> None:
+        data = dict(MINIMAL_MISSION, assets=["not an asset"])
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(
+                ConfigError,
+                match=r"assets\[0\] must be an object"):
+            load_mission_config(path)
+
     def test_missing_asset_base_location_raises(
             self,
             tmp_path: pathlib.Path) -> None:
@@ -116,6 +152,53 @@ class TestLoadMissionConfig:
         data = dict(MINIMAL_MISSION, assets=[asset])
         path = _write(tmp_path, "mission.yaml", data)
         with pytest.raises(ConfigError, match="baseLocation is required"):
+            load_mission_config(path)
+
+    def test_asset_response_time_must_be_integer(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        asset = dict(MINIMAL_MISSION["assets"][0])  # type: ignore
+        asset["responseTimeMins"] = "soon"
+        data = dict(MINIMAL_MISSION, assets=[asset])
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(
+                ConfigError,
+                match=r"assets\[0\].responseTimeMins must be an integer"):
+            load_mission_config(path)
+
+    def test_asset_base_location_latitude_must_be_number(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        asset = dict(MINIMAL_MISSION["assets"][0])  # type: ignore
+        asset["baseLocation"] = {
+            "latitude": "south",
+            "longitude": 172.6,
+        }
+        data = dict(MINIMAL_MISSION, assets=[asset])
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(
+                ConfigError,
+                match=r"assets\[0\].baseLocation.latitude must be a number"):
+            load_mission_config(path)
+
+    def test_pois_must_be_list(self, tmp_path: pathlib.Path) -> None:
+        data = dict(MINIMAL_MISSION, POIs={})
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(ConfigError, match="POIs must be a list"):
+            load_mission_config(path)
+
+    def test_poi_must_be_object(self, tmp_path: pathlib.Path) -> None:
+        data = dict(MINIMAL_MISSION, POIs=["not a poi"])
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(ConfigError, match=r"POIs\[0\] must be an object"):
+            load_mission_config(path)
+
+    def test_poi_location_is_required(self, tmp_path: pathlib.Path) -> None:
+        data = dict(MINIMAL_MISSION, POIs=[{"name": "Clue 1"}])
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(
+                ConfigError,
+                match=r"POIs\[0\].location is required"):
             load_mission_config(path)
 
     def test_json_mission(self, tmp_path: pathlib.Path) -> None:
@@ -136,6 +219,20 @@ class TestLoadParticipantConfig:
         data = {"name": "Team Alpha"}
         path = _write(tmp_path, "participant.yaml", data)
         with pytest.raises(ConfigError, match="members is required"):
+            load_participant_config(path)
+
+    def test_members_must_be_list(self, tmp_path: pathlib.Path) -> None:
+        data = {"name": "Team Alpha", "members": {}}
+        path = _write(tmp_path, "participant.yaml", data)
+        with pytest.raises(ConfigError, match="members must be a list"):
+            load_participant_config(path)
+
+    def test_member_must_be_object(self, tmp_path: pathlib.Path) -> None:
+        data = {"name": "Team Alpha", "members": ["alice"]}
+        path = _write(tmp_path, "participant.yaml", data)
+        with pytest.raises(
+                ConfigError,
+                match=r"members\[0\] must be an object"):
             load_participant_config(path)
 
     def test_member_missing_password_raises(

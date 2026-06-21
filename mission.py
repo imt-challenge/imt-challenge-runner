@@ -340,6 +340,7 @@ class MissionRunnerParticipant:
         for organisation in organisations:
             if organisation.name == 'IMT':
                 mission_org = mission.add_organization(organisation)
+                self.mission_org_list.append(mission_org)
                 # Make it so the IMT members can add other organizations
                 # to the mission
                 # Adding an organization is the trigger event to activate
@@ -375,6 +376,7 @@ class MissionRunnerParticipant:
                     for org in new_orgs:
                         if asset.organization == org.name:
                             self.assets[asset.name].add_to_mission()
+        self.mission_org_list = mission_orgs
 
     def stop(self) -> None:
         """

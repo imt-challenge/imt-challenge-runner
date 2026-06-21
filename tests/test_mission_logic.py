@@ -121,6 +121,35 @@ class TestCheckAddedOrganizations:
 
         mock_pa.add_to_mission.assert_called_once()
 
+    def test_existing_org_is_not_reprocessed(
+            self,
+            mocker: MagicMock) -> None:
+        config = _asset_config(org="TeamAlpha")
+        participant = _make_mission_runner_participant([config])
+
+        mock_pa = MagicMock(spec=ParticipantAsset)
+        mock_pa.added_time = None
+        participant.assets = {config.name: mock_pa}
+        participant.mission_org_list = []
+
+        mocker.patch.object(
+            participant,
+            "_get_smm_imt_challenge",
+            return_value=MagicMock())
+        mock_mission = MagicMock()
+        team_alpha = _mock_mission_org("TeamAlpha")
+        mock_mission.get_organizations.return_value = [team_alpha]
+        mocker.patch.object(
+            participant,
+            "_get_mission",
+            return_value=mock_mission)
+
+        participant.check_added_organizations()
+        participant.check_added_organizations()
+
+        mock_pa.add_to_mission.assert_called_once()
+        assert participant.mission_org_list == [team_alpha]
+
     def test_non_matching_org_does_not_trigger(
             self,
             mocker: MagicMock) -> None:

@@ -42,7 +42,7 @@ class Vehicle:
                 f'ap_{self.prefix_name}-net',
                 driver='bridge')
         self.apm = docker_client.containers.create(
-            f'sparlane/ardupilot-sitl:{aircraft_type}-master',
+            f'sparlane/ardupilot-sitl:{aircraft_type}-latest',
             detach=True,
             name=f'{self.prefix_name}_sitl',
             environment=[

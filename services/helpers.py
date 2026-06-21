@@ -7,6 +7,7 @@ from __future__ import annotations
 import secrets
 import string
 import time
+import random
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
@@ -18,7 +19,8 @@ import docker.models.networks
 _SECRET_ALPHABET = string.ascii_letters + string.digits + "-_"
 
 
-def remove_container(container: docker.models.containers.Container | None) -> None:
+def remove_container(
+        container: docker.models.containers.Container | None) -> None:
     """
     Force-remove a docker container, tolerating a container that was
     never started or has already been removed.

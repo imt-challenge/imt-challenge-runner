@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import docker
 import docker.errors
+import docker.models.containers
 import docker.models.networks
 
 from services.helpers import (
@@ -39,7 +40,40 @@ class Vehicle:
         self.prefix_name = (
             f'{sanitize_docker_name(smm_server.name)}_'
             f'{sanitize_docker_name(name)}')
-        self.net: docker.models.networks.Network
+        self.net: docker.models.networks.Network | None = None
+        self.apm: docker.models.containers.Container | None = None
+        self.mavproxy: docker.models.containers.Container | None = None
+        self.smm_mavlink: docker.models.containers.Container | None = None
+        try:
+            self._create(
+                docker_client,
+                name,
+                aircraft_type,
+                smm_server,
+                username,
+                password,
+                lat,
+                lon)
+        except Exception:  # pylint: disable=broad-exception-caught
+            self.stop()
+            raise
+        log.debug("Created vehicle containers for %s", name)
+
+    # pylint: disable=R0913,R0917
+    def _create(
+        self,
+        docker_client: docker.DockerClient,
+        name: str,
+        aircraft_type: str,
+        smm_server: SMMServer,
+        username: str,
+        password: str,
+        lat: float,
+        lon: float,
+    ) -> None:
+        """
+        Create Docker resources for this vehicle.
+        """
         try:
             self.net = docker_client.networks.get(f'ap_{self.prefix_name}-net')
         except docker.errors.NotFound:
@@ -98,13 +132,15 @@ class Vehicle:
         self.net.connect(self.smm_mavlink)
         assert smm_server.db_net is not None
         smm_server.db_net.connect(self.smm_mavlink)
-        log.debug("Created vehicle containers for %s", name)
 
     def start(self) -> None:
         """
         Start the vehicle
         """
         log.info("Starting vehicle %s", self.prefix_name)
+        assert self.apm is not None
+        assert self.mavproxy is not None
+        assert self.smm_mavlink is not None
         self.apm.start()
         self.mavproxy.start()
         self.smm_mavlink.start()

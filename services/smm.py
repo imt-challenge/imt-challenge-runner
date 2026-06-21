@@ -154,8 +154,10 @@ class SMMServer:
         Start this instance, and the related database server.
         Images are pre-pulled by the caller; only postgres startup runs here.
         """
-        assert self.postgres is not None
-        assert self.db_net is not None
+        if self.postgres is None:
+            raise RuntimeError(f"SMM {self.name} has no postgres server")
+        if self.db_net is None:
+            raise RuntimeError(f"SMM {self.name} has no database network")
         log.info("Starting SMM %s", self.name)
         self._ensure_image_available()
         self.postgres.start()

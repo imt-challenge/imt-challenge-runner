@@ -95,7 +95,9 @@ class PostgresServer:
         """
         Start this instance
         """
-        assert self.instance is not None
+        if self.instance is None:
+            raise RuntimeError(
+                f"Postgres {self.name} container has not been created")
         log.info("Starting postgres %s", self.name)
         self.instance.start()
         self._wait_for_startup()

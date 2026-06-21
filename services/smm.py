@@ -2,8 +2,6 @@
 Manage Instances of Search Management Map
 See: https://github.com/canterbury-air-patrol/search-management-map
 """
-# pylint: disable=duplicate-code
-
 from __future__ import annotations
 
 import logging
@@ -20,6 +18,7 @@ from smm_client.connection import SMMConnection
 
 from .helpers import (
     get_random_secret,
+    log_container_logs_on_timeout,
     remove_container,
     remove_network,
     wait_until,
@@ -99,14 +98,11 @@ class SMMServer:
                 interval=1.0,
                 description=f"SMM {self.name} web server on port {self.port}")
         except TimeoutError:
-            if self.instance is not None:
-                try:
-                    raw = self.instance.logs(tail=200)
-                    log.warning(
-                        "SMM %s readiness timed out. Container logs:\n%s",
-                        self.name, raw.decode(errors='replace'))
-                except Exception:  # pylint: disable=broad-except
-                    pass
+            log_container_logs_on_timeout(
+                self.instance,
+                self.name,
+                "SMM",
+                log)
             raise
         log.debug("SMM %s web server is ready", self.name)
 

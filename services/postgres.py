@@ -1,8 +1,6 @@
 """
 Postgres server
 """
-# pylint: disable=duplicate-code
-
 from __future__ import annotations
 
 import logging
@@ -12,7 +10,12 @@ import docker.errors
 import docker.models.containers
 import docker.models.networks
 
-from .helpers import get_random_secret, remove_container, wait_until
+from .helpers import (
+    get_random_secret,
+    log_container_logs_on_timeout,
+    remove_container,
+    wait_until,
+)
 
 log = logging.getLogger(__name__)
 
@@ -78,14 +81,11 @@ class PostgresServer:
                 interval=1.0,
                 description=f"postgres {self.name} to accept connections")
         except TimeoutError:
-            if self.instance is not None:
-                try:
-                    raw = self.instance.logs(tail=200)
-                    log.warning(
-                        "Postgres %s readiness timed out. Container logs:\n%s",
-                        self.name, raw.decode(errors='replace'))
-                except Exception:  # pylint: disable=broad-except
-                    pass
+            log_container_logs_on_timeout(
+                self.instance,
+                self.name,
+                "Postgres",
+                log)
             raise
         log.debug("Postgres %s is ready", self.name)
 

@@ -9,7 +9,7 @@ from typing import Any, cast
 
 import yaml
 
-from configmodels import MissionConfig, ParticipantConfig
+from configmodels import ConfigError, MissionConfig, ParticipantConfig
 
 
 def load_config(filename: str) -> dict[str, Any]:
@@ -19,13 +19,17 @@ def load_config(filename: str) -> dict[str, Any]:
     """
     if filename.endswith('.yml') or filename.endswith('.yaml'):
         with open(filename, 'r', encoding='utf-8') as file:
-            return cast(dict[str, Any], yaml.safe_load(file))
-    if filename.endswith('.json'):
+            data = yaml.safe_load(file)
+    elif filename.endswith('.json'):
         with open(filename, 'r', encoding='utf-8') as file:
-            return cast(dict[str, Any], json.load(file))
-    raise ValueError(
-        f"{filename}: unsupported file extension"
-        " (expected .yml, .yaml, or .json)")
+            data = json.load(file)
+    else:
+        raise ValueError(
+            f"{filename}: unsupported file extension"
+            " (expected .yml, .yaml, or .json)")
+    if not isinstance(data, dict):
+        raise ConfigError(f"{filename}: config root must be an object")
+    return cast(dict[str, Any], data)
 
 
 def load_mission_config(filename: str) -> MissionConfig:

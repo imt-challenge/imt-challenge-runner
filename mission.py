@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from smm_client.missions import SMMMission
 from smm_client.organizations import SMMOrganization
@@ -22,6 +22,14 @@ if TYPE_CHECKING:
     from smm_client.connection import SMMConnection
     from smm_client.assets import SMMAsset, SMMAssetType
     from smm_client.missions import SMMMissionOrganization
+
+
+class UserAccountAsset(TypedDict):
+    """Credentials for one generated asset account."""
+
+    username: str
+    password: str
+
 
 MAS_AWAITING_CREW = "Awaiting Crew"
 MAS_AWAITING_TASKING = "Awaiting Tasking"
@@ -71,7 +79,13 @@ class VehicleDocker:
     """
     Docker handler for vehicles
     """
-    def __init__(self, config: AssetConfig, smm: SMMServer, username: str, password: str) -> None:
+    def __init__(
+        self,
+        config: AssetConfig,
+        smm: SMMServer,
+        username: str,
+        password: str,
+    ) -> None:
         self.config = config
         self.smm = smm
         self.username = username
@@ -200,11 +214,11 @@ class MissionRunnerParticipant:
         self.mission_id: int | None = None
         self.mission_asset_statuses: dict[str, Any] = {}
         self.assets: dict[str, ParticipantAsset] = {}
-        self.asset_accounts: dict[str, dict[str, str]] = {}
+        self.asset_accounts: dict[str, UserAccountAsset] = {}
         self.organization_admins: dict[str, Any] = {}
         self.mission_org_list: list[SMMMissionOrganization] = []
 
-    def get_user_account_asset(self, asset: str) -> dict[str, str]:
+    def get_user_account_asset(self, asset: str) -> UserAccountAsset:
         """
         Get the user account for a specific asset
         """

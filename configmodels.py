@@ -12,7 +12,11 @@ class ConfigError(Exception):
     """Raised when a config file is missing required fields."""
 
 
-def _require(data: dict[str, Any], key: str, filepath: str, prefix: str) -> Any:
+def _require(
+        data: dict[str, Any],
+        key: str,
+        filepath: str,
+        prefix: str) -> Any:
     if key not in data or data[key] is None:
         field_path = f"{prefix}.{key}" if prefix else key
         raise ConfigError(f"{filepath}: {field_path} is required")
@@ -27,7 +31,11 @@ class BaseLocation:
     longitude: float
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], filepath: str, prefix: str) -> BaseLocation:
+    def from_dict(
+            cls,
+            data: dict[str, Any],
+            filepath: str,
+            prefix: str) -> BaseLocation:
         """Build from a raw dict, raising ConfigError on missing fields."""
         lat = _require(data, 'latitude', filepath, prefix)
         lon = _require(data, 'longitude', filepath, prefix)
@@ -45,7 +53,11 @@ class AssetConfig:
     base_location: BaseLocation
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], filepath: str, prefix: str) -> AssetConfig:
+    def from_dict(
+            cls,
+            data: dict[str, Any],
+            filepath: str,
+            prefix: str) -> AssetConfig:
         """Build from a raw dict, raising ConfigError on missing fields."""
         name = _require(data, 'name', filepath, prefix)
         type_ = _require(data, 'type', filepath, prefix)
@@ -115,7 +127,11 @@ class MemberConfig:
     password: str
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], filepath: str, prefix: str) -> MemberConfig:
+    def from_dict(
+            cls,
+            data: dict[str, Any],
+            filepath: str,
+            prefix: str) -> MemberConfig:
         """Build from a raw dict, raising ConfigError on missing fields."""
         username = _require(data, 'username', filepath, prefix)
         password = _require(data, 'password', filepath, prefix)
@@ -130,7 +146,10 @@ class ParticipantConfig:
     members: list[MemberConfig]
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], filepath: str) -> ParticipantConfig:
+    def from_dict(
+            cls,
+            data: dict[str, Any],
+            filepath: str) -> ParticipantConfig:
         """Build from a raw dict, raising ConfigError on missing fields."""
         name = _require(data, 'name', filepath, '')
         members_data = _require(data, 'members', filepath, '')

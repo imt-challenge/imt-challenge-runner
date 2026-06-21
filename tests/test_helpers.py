@@ -3,6 +3,8 @@ Unit tests for services.helpers.wait_until.
 """
 
 import unittest
+from contextlib import AbstractContextManager
+from typing import Any
 from unittest.mock import patch
 
 from services.helpers import get_random_secret, wait_until
@@ -40,7 +42,7 @@ class GetRandomSecretTests(unittest.TestCase):
 
 
 class WaitUntilTests(unittest.TestCase):
-    def _patch_clock(self, clock: FakeClock):
+    def _patch_clock(self, clock: FakeClock) -> AbstractContextManager[Any]:
         return patch.multiple(
             'services.helpers.time',
             monotonic=clock.monotonic,

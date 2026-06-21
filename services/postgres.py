@@ -19,7 +19,12 @@ class PostgresServer:
     """
     IMAGE = 'postgis/postgis:17-3.5'
 
-    def __init__(self, name: str, network: docker.models.networks.Network, db_name: str, docker_client: docker.DockerClient) -> None:
+    def __init__(
+            self,
+            name: str,
+            network: docker.models.networks.Network,
+            db_name: str,
+            docker_client: docker.DockerClient) -> None:
         self.postgres_pass = get_random_secret(10)
         self.name = name
         self._db_name = db_name

@@ -234,3 +234,4 @@ class TestCheckAddedOrganizations:
         participant.check_added_organizations()
 
         mock_pa.add_to_mission.assert_called_once()
+        assert participant.mission_org_list == [existing_org_mo, new_org_mo]

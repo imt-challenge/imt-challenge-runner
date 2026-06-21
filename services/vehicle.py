@@ -55,7 +55,12 @@ class Vehicle:
                 lat,
                 lon)
         except Exception:  # pylint: disable=broad-exception-caught
-            self.stop()
+            try:
+                self.stop()
+            except Exception:  # pylint: disable=broad-exception-caught
+                log.exception(
+                    "Error during vehicle cleanup after failed creation: %s",
+                    name)
             raise
         log.debug("Created vehicle containers for %s", name)
 
@@ -130,7 +135,9 @@ class Vehicle:
             detach=True,
             name=f'{self.prefix_name}_smm_mavlink')
         self.net.connect(self.smm_mavlink)
-        assert smm_server.db_net is not None
+        if smm_server.db_net is None:
+            raise RuntimeError(
+                f"SMM server {smm_server.name} has no database network")
         smm_server.db_net.connect(self.smm_mavlink)
 
     def start(self) -> None:
@@ -138,9 +145,15 @@ class Vehicle:
         Start the vehicle
         """
         log.info("Starting vehicle %s", self.prefix_name)
-        assert self.apm is not None
-        assert self.mavproxy is not None
-        assert self.smm_mavlink is not None
+        if self.apm is None:
+            raise RuntimeError(
+                f"Vehicle {self.prefix_name} has no SITL container")
+        if self.mavproxy is None:
+            raise RuntimeError(
+                f"Vehicle {self.prefix_name} has no MAVProxy container")
+        if self.smm_mavlink is None:
+            raise RuntimeError(
+                f"Vehicle {self.prefix_name} has no SMM MAVLink container")
         self.apm.start()
         self.mavproxy.start()
         self.smm_mavlink.start()

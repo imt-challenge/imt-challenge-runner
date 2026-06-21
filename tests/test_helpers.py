@@ -4,6 +4,7 @@ Unit tests for services.helpers.
 
 import unittest
 from contextlib import AbstractContextManager
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -37,9 +38,8 @@ class FakeClock:
         self.now += seconds
 
 
-class FakeResponse:
-    def __init__(self, status_code: int) -> None:
-        self.status_code = status_code
+def _response(status_code: int) -> SimpleNamespace:
+    return SimpleNamespace(status_code=status_code)
 
 
 class RemoveNetworkTests(unittest.TestCase):
@@ -55,17 +55,36 @@ class RemoveNetworkTests(unittest.TestCase):
         network = MagicMock()
         network.remove.side_effect = docker.errors.APIError(
             "active endpoints",
-            response=FakeResponse(409))
+            response=_response(409))
 
         remove_network(network)
 
         network.remove.assert_called_once()
 
+    def test_ignores_endpoint_conflict_with_explanation_only(self) -> None:
+        network = MagicMock()
+        network.remove.side_effect = docker.errors.APIError(
+            "active endpoints",
+            response=None)
+
+        remove_network(network)
+
+        network.remove.assert_called_once()
+
+    def test_reraises_api_error_without_endpoint_conflict(self) -> None:
+        network = MagicMock()
+        network.remove.side_effect = docker.errors.APIError(
+            "some other explanation",
+            response=_response(500))
+
+        with self.assertRaises(docker.errors.APIError):
+            remove_network(network)
+
     def test_reraises_unexpected_api_errors(self) -> None:
         network = MagicMock()
         network.remove.side_effect = docker.errors.APIError(
             "server exploded",
-            response=FakeResponse(500))
+            response=_response(500))
 
         with self.assertRaises(docker.errors.APIError):
             remove_network(network)

@@ -111,8 +111,13 @@ class PostgresServer:
             return
         try:
             self.instance.stop()
-        except (docker.errors.NotFound, docker.errors.APIError):
+        except docker.errors.NotFound:
             pass
+        except docker.errors.APIError:
+            log.debug(
+                "Failed to stop postgres %s",
+                self.name,
+                exc_info=True)
 
     def cleanup(self) -> None:
         """

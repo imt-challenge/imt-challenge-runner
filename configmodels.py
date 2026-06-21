@@ -50,6 +50,9 @@ def _require_list(
 
 
 def _as_float(value: Any, filepath: str, field_path: str) -> float:
+    if isinstance(value, bool):
+        raise ConfigError(
+            f"{filepath}: {field_path} must be a number, not a boolean")
     try:
         return float(value)
     except (TypeError, ValueError) as exc:
@@ -58,6 +61,9 @@ def _as_float(value: Any, filepath: str, field_path: str) -> float:
 
 
 def _as_int(value: Any, filepath: str, field_path: str) -> int:
+    if isinstance(value, bool):
+        raise ConfigError(
+            f"{filepath}: {field_path} must be an integer, not a boolean")
     try:
         return int(value)
     except (TypeError, ValueError) as exc:
@@ -132,7 +138,7 @@ class POIConfig:
     """A point of interest in a mission."""
 
     name: str
-    location: dict[str, float]
+    location: BaseLocation
 
     @classmethod
     def from_dict(
@@ -148,13 +154,7 @@ class POIConfig:
             location_data,
             filepath,
             f"{prefix}.location")
-        return cls(
-            name=str(name),
-            location={
-                'latitude': location.latitude,
-                'longitude': location.longitude,
-            },
-        )
+        return cls(name=str(name), location=location)
 
 
 @dataclass

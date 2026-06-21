@@ -306,15 +306,9 @@ class MissionRunnerParticipant:
         Add a POI to a mission
         """
         location = poi.location
-        if not isinstance(location, dict):
-            return False
-        point = None
-        if 'latitude' in location and 'longitude' in location:
-            point = SMMPoint(location['latitude'], location['longitude'])
-        if point is not None:
-            mission.add_waypoint(point, poi.name)
-            return True
-        return False
+        point = SMMPoint(location.latitude, location.longitude)
+        mission.add_waypoint(point, poi.name)
+        return True
 
     def _get_smm_imt_challenge(self) -> SMMConnection:
         """

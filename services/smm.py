@@ -45,7 +45,7 @@ class SMMServer:
             self.db_net,
             'smm',
             docker_client)
-        self.admin_password = get_random_secret()
+        self.admin_password = get_random_secret(10)
         docker_client.images.pull(
             'canterburyairpatrol/search-management-map:latest')
         self.instance = docker_client.containers.create(

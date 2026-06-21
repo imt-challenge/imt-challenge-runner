@@ -31,13 +31,12 @@ class GetRandomSecretTests(unittest.TestCase):
         self.assertEqual(len(set(secrets)), 10)
 
     def test_default_length_meets_entropy_requirement(self) -> None:
-        # secrets.token_urlsafe(24) produces 32 URL-safe characters (≥128 bits)
         secret = get_random_secret()
-        self.assertGreaterEqual(len(secret), 22)
+        self.assertEqual(len(secret), 32)
 
-    def test_custom_nbytes(self) -> None:
-        secret = get_random_secret(nbytes=32)
-        self.assertGreaterEqual(len(secret), 22)
+    def test_custom_length(self) -> None:
+        secret = get_random_secret(length=12)
+        self.assertEqual(len(secret), 12)
 
 
 class WaitUntilTests(unittest.TestCase):

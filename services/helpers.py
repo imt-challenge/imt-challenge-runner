@@ -22,6 +22,16 @@ log = logging.getLogger(__name__)
 
 _SECRET_ALPHABET = string.ascii_letters + string.digits + "-_"
 _DOCKER_NAME_INVALID_CHARS = re.compile(r"[^a-z0-9_.-]+")
+_MAX_IMAGE_PULL_WORKERS = 8
+
+
+def _is_endpoint_conflict(exc: docker.errors.APIError) -> bool:
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    if status_code == 409:
+        return True
+    explanation = getattr(exc, "explanation", "")
+    return "active endpoints" in str(explanation).lower()
 
 
 def remove_container(
@@ -50,7 +60,12 @@ def remove_network(network: docker.models.networks.Network | None) -> None:
     except docker.errors.NotFound:
         pass
     except docker.errors.APIError as exc:
-        log.warning("Skipping removal of network %s: %s", network.name, exc)
+        if not _is_endpoint_conflict(exc):
+            raise
+        log.warning(
+            "Skipping removal of network %s: %s",
+            network.name,
+            getattr(exc, "explanation", exc))
 
 
 def log_container_logs_on_timeout(
@@ -122,7 +137,8 @@ def pull_images(client: docker.DockerClient, images: list[str]) -> None:
         log.debug("No images to pull")
         return
     log.info("Pulling %d image(s): %s", len(images), ", ".join(images))
-    with ThreadPoolExecutor(max_workers=len(images)) as ex:
+    max_workers = min(len(images), _MAX_IMAGE_PULL_WORKERS)
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = [ex.submit(client.images.pull, image) for image in images]
         for f in futures:
             f.result()

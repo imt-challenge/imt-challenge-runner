@@ -3,6 +3,7 @@ Unit tests for SMM server startup helpers.
 """
 
 from unittest.mock import MagicMock
+from typing import cast
 
 import docker.errors
 import pytest
@@ -38,7 +39,8 @@ def test_ensure_image_available_raises_clear_error() -> None:
 
 def test_resolve_host_port_reads_docker_binding() -> None:
     server = _server()
-    server.instance.attrs = {
+    instance = cast(MagicMock, server.instance)
+    instance.attrs = {
         "NetworkSettings": {
             "Ports": {
                 "8080/tcp": [{"HostPort": "32768"}],
@@ -49,9 +51,18 @@ def test_resolve_host_port_reads_docker_binding() -> None:
     assert server._resolve_host_port() == 32768
 
 
+def test_resolve_host_port_raises_when_instance_missing() -> None:
+    server = _server()
+    server.instance = None
+
+    with pytest.raises(RuntimeError, match="container has not been created"):
+        server._resolve_host_port()
+
+
 def test_resolve_host_port_rejects_missing_binding() -> None:
     server = _server()
-    server.instance.attrs = {
+    instance = cast(MagicMock, server.instance)
+    instance.attrs = {
         "NetworkSettings": {
             "Ports": {},
         },
@@ -61,9 +72,28 @@ def test_resolve_host_port_rejects_missing_binding() -> None:
         server._resolve_host_port()
 
 
+def test_resolve_host_port_rejects_multiple_bindings() -> None:
+    server = _server()
+    instance = cast(MagicMock, server.instance)
+    instance.attrs = {
+        "NetworkSettings": {
+            "Ports": {
+                "8080/tcp": [
+                    {"HostPort": "32768"},
+                    {"HostPort": "32769"},
+                ],
+            },
+        },
+    }
+
+    with pytest.raises(RuntimeError, match="multiple host port bindings"):
+        server._resolve_host_port()
+
+
 def test_resolve_host_port_rejects_invalid_binding() -> None:
     server = _server()
-    server.instance.attrs = {
+    instance = cast(MagicMock, server.instance)
+    instance.attrs = {
         "NetworkSettings": {
             "Ports": {
                 "8080/tcp": [{"HostPort": "not-a-port"}],

@@ -119,17 +119,25 @@ class SMMServer:
 
     def _resolve_host_port(self) -> int:
         if self.instance is None:
-            raise RuntimeError(f"SMM {self.name} container has not been created")
+            raise RuntimeError(
+                f"SMM {self.name} container has not been created")
 
-        ports = self.instance.attrs.get('NetworkSettings', {}).get('Ports', {})
+        ports = self.instance.attrs.get(
+            'NetworkSettings', {}).get('Ports', {})
         binding_key = f'{self.internal_port}/tcp'
         bindings: Any = ports.get(binding_key)
         if not isinstance(bindings, list) or not bindings:
             raise RuntimeError(
                 f"SMM {self.name} has no host port binding for {binding_key}")
+        if len(bindings) != 1:
+            raise RuntimeError(
+                f"SMM {self.name} has multiple host port bindings "
+                f"for {binding_key}")
 
         first_binding = bindings[0]
-        if not isinstance(first_binding, dict) or 'HostPort' not in first_binding:
+        if (
+                not isinstance(first_binding, dict)
+                or 'HostPort' not in first_binding):
             raise RuntimeError(
                 f"SMM {self.name} has an invalid host port binding "
                 f"for {binding_key}")

@@ -107,7 +107,7 @@ if __name__ == "__main__":
     with contextlib.ExitStack() as cleanup_stack:
         if not args.keep:
             # ExitStack unwinds in reverse, so register participant cleanup
-            # first and runner.stop last — vehicle containers must go before
+            # first and runner.stop last. Vehicle containers must go before
             # the SMM networks they are attached to.
             for participant in participant_services:
                 cleanup_stack.callback(participant.cleanup)

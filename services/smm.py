@@ -2,6 +2,8 @@
 Manage Instances of Search Management Map
 See: https://github.com/canterbury-air-patrol/search-management-map
 """
+# pylint: disable=duplicate-code
+
 from __future__ import annotations
 
 import logging

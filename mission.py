@@ -9,22 +9,22 @@ import time
 
 from typing import TYPE_CHECKING, Any, TypedDict
 
-log = logging.getLogger(__name__)
-
 from smm_client.missions import SMMMission
 from smm_client.organizations import SMMOrganization
 from smm_client.types import SMMPoint
 
-from services.helpers import get_random_secret, sanitize_account_name
-from services.vehicle import Vehicle
 from configloader import load_mission_config
 from configmodels import AssetConfig, MissionConfig, POIConfig
+from services.helpers import get_random_secret, sanitize_account_name
+from services.vehicle import Vehicle
 
 if TYPE_CHECKING:
     from services.smm import SMMServer
     from smm_client.connection import SMMConnection
     from smm_client.assets import SMMAsset, SMMAssetType
     from smm_client.missions import SMMMissionOrganization
+
+log = logging.getLogger(__name__)
 
 
 class UserAccountAsset(TypedDict):

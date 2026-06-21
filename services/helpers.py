@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 import secrets
 import string
 import time
@@ -20,6 +21,7 @@ import docker.models.networks
 log = logging.getLogger(__name__)
 
 _SECRET_ALPHABET = string.ascii_letters + string.digits + "-_"
+_DOCKER_NAME_INVALID_CHARS = re.compile(r"[^a-z0-9_.-]+")
 
 
 def remove_container(
@@ -135,3 +137,15 @@ def sanitize_account_name(account: str) -> str:
     - no slashes
     """
     return account.lower().replace(' ', '.').replace('/', '.')
+
+
+def sanitize_docker_name(name: str) -> str:
+    """
+    Convert a display name into a Docker container/network name fragment.
+    """
+    cleaned = _DOCKER_NAME_INVALID_CHARS.sub("-", name.lower())
+    cleaned = cleaned.strip(".-_")
+    if not cleaned:
+        raise ValueError(
+            f"{name!r} must contain at least one Docker-safe character")
+    return cleaned

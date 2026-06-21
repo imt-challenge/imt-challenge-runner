@@ -11,6 +11,7 @@ from services.helpers import (
     get_random_secret,
     get_random_string,
     sanitize_account_name,
+    sanitize_docker_name,
     wait_until,
 )
 
@@ -128,6 +129,29 @@ class SanitizeAccountNameTests(unittest.TestCase):
 
     def test_already_clean(self) -> None:
         self.assertEqual(sanitize_account_name("clean"), "clean")
+
+
+class SanitizeDockerNameTests(unittest.TestCase):
+    def test_lowercases_name(self) -> None:
+        self.assertEqual(sanitize_docker_name("TeamAlpha"), "teamalpha")
+
+    def test_replaces_spaces_with_hyphens(self) -> None:
+        self.assertEqual(sanitize_docker_name("Team Alpha"), "team-alpha")
+
+    def test_replaces_invalid_punctuation(self) -> None:
+        self.assertEqual(sanitize_docker_name("Team/Alpha#1"), "team-alpha-1")
+
+    def test_preserves_valid_separators(self) -> None:
+        self.assertEqual(sanitize_docker_name("team.alpha_1"), "team.alpha_1")
+
+    def test_strips_leading_and_trailing_separators(self) -> None:
+        self.assertEqual(
+            sanitize_docker_name("...Team Alpha---"),
+            "team-alpha")
+
+    def test_rejects_empty_result(self) -> None:
+        with self.assertRaises(ValueError):
+            sanitize_docker_name("///")
 
 
 if __name__ == '__main__':

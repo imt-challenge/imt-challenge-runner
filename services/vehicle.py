@@ -12,7 +12,7 @@ import docker.errors
 import docker.models.networks
 
 from services.helpers import (
-    remove_container, remove_network, sanitize_account_name)
+    remove_container, remove_network, sanitize_docker_name)
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +36,9 @@ class Vehicle:
         lon: float = 172.5,
     ) -> None:
         docker_client = docker.from_env()
-        self.prefix_name = f'{smm_server.name}_{sanitize_account_name(name)}'
+        self.prefix_name = (
+            f'{sanitize_docker_name(smm_server.name)}_'
+            f'{sanitize_docker_name(name)}')
         self.net: docker.models.networks.Network
         try:
             self.net = docker_client.networks.get(f'ap_{self.prefix_name}-net')

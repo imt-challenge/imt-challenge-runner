@@ -4,7 +4,6 @@ Unit tests for configloader.
 
 import json
 import pathlib
-import textwrap
 
 import pytest
 import yaml
@@ -17,21 +16,21 @@ from configloader import (
 from configmodels import ConfigError
 
 
-MINIMAL_MISSION = {
-    "name": "Test Mission",
-    "description": "A test",
-    "assets": [
-        {
-            "name": "Alpha Boat",
-            "type": "Boat",
-            "organization": "TeamAlpha",
-            "responseTimeMins": 5,
-            "baseLocation": {"latitude": -43.5, "longitude": 172.6},
-        }
-    ],
+MINIMAL_ASSET: dict[str, object] = {
+    "name": "Alpha Boat",
+    "type": "Boat",
+    "organization": "TeamAlpha",
+    "responseTimeMins": 5,
+    "baseLocation": {"latitude": -43.5, "longitude": 172.6},
 }
 
-MINIMAL_PARTICIPANT = {
+MINIMAL_MISSION: dict[str, object] = {
+    "name": "Test Mission",
+    "description": "A test",
+    "assets": [MINIMAL_ASSET],
+}
+
+MINIMAL_PARTICIPANT: dict[str, object] = {
     "name": "Team Alpha",
     "members": [{"username": "alice", "password": "secret"}],
 }
@@ -68,6 +67,33 @@ class TestLoadConfig:
     def test_missing_file_raises(self, tmp_path: pathlib.Path) -> None:
         with pytest.raises(FileNotFoundError):
             load_config(str(tmp_path / "nonexistent.yaml"))
+
+    def test_invalid_yaml_raises_parse_error(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "invalid.yaml"
+        path.write_text("key: [unclosed", encoding="utf-8")
+
+        with pytest.raises(yaml.YAMLError):
+            load_config(str(path))
+
+    def test_invalid_yml_raises_parse_error(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "invalid.yml"
+        path.write_text("another: { malformed", encoding="utf-8")
+
+        with pytest.raises(yaml.YAMLError):
+            load_config(str(path))
+
+    def test_invalid_json_raises_parse_error(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        path = tmp_path / "invalid.json"
+        path.write_text('{"x": [1, 2] "y": 3}', encoding="utf-8")
+
+        with pytest.raises(json.JSONDecodeError):
+            load_config(str(path))
 
     def test_empty_yaml_raises_config_error(
             self,
@@ -114,6 +140,7 @@ class TestLoadMissionConfig:
         cfg = load_mission_config(path)
         assert len(cfg.pois) == 1
         assert cfg.pois[0].name == "Clue 1"
+        assert cfg.pois[0].location.latitude == pytest.approx(-43.6)
 
     def test_missing_name_raises(self, tmp_path: pathlib.Path) -> None:
         data = {k: v for k, v in MINIMAL_MISSION.items() if k != "name"}
@@ -146,7 +173,7 @@ class TestLoadMissionConfig:
             tmp_path: pathlib.Path) -> None:
         asset = {
             k: v
-            for k, v in MINIMAL_MISSION["assets"][0].items()  # type: ignore
+            for k, v in MINIMAL_ASSET.items()
             if k != "baseLocation"
         }
         data = dict(MINIMAL_MISSION, assets=[asset])
@@ -157,7 +184,7 @@ class TestLoadMissionConfig:
     def test_asset_response_time_must_be_integer(
             self,
             tmp_path: pathlib.Path) -> None:
-        asset = dict(MINIMAL_MISSION["assets"][0])  # type: ignore
+        asset = dict(MINIMAL_ASSET)
         asset["responseTimeMins"] = "soon"
         data = dict(MINIMAL_MISSION, assets=[asset])
         path = _write(tmp_path, "mission.yaml", data)
@@ -169,7 +196,7 @@ class TestLoadMissionConfig:
     def test_asset_base_location_latitude_must_be_number(
             self,
             tmp_path: pathlib.Path) -> None:
-        asset = dict(MINIMAL_MISSION["assets"][0])  # type: ignore
+        asset = dict(MINIMAL_ASSET)
         asset["baseLocation"] = {
             "latitude": "south",
             "longitude": 172.6,
@@ -179,6 +206,37 @@ class TestLoadMissionConfig:
         with pytest.raises(
                 ConfigError,
                 match=r"assets\[0\].baseLocation.latitude must be a number"):
+            load_mission_config(path)
+
+    def test_asset_response_time_rejects_boolean(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        asset = dict(MINIMAL_ASSET)
+        asset["responseTimeMins"] = True
+        data = dict(MINIMAL_MISSION, assets=[asset])
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(
+                ConfigError,
+                match=(
+                    r"assets\[0\].responseTimeMins must be an integer, "
+                    "not a boolean")):
+            load_mission_config(path)
+
+    def test_asset_base_location_latitude_rejects_boolean(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        asset = dict(MINIMAL_ASSET)
+        asset["baseLocation"] = {
+            "latitude": False,
+            "longitude": 172.6,
+        }
+        data = dict(MINIMAL_MISSION, assets=[asset])
+        path = _write(tmp_path, "mission.yaml", data)
+        with pytest.raises(
+                ConfigError,
+                match=(
+                    r"assets\[0\].baseLocation.latitude must be a number, "
+                    "not a boolean")):
             load_mission_config(path)
 
     def test_pois_must_be_list(self, tmp_path: pathlib.Path) -> None:

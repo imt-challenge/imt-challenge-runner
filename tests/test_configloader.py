@@ -141,6 +141,7 @@ class TestLoadMissionConfig:
         assert len(cfg.pois) == 1
         assert cfg.pois[0].name == "Clue 1"
         assert cfg.pois[0].location.latitude == pytest.approx(-43.6)
+        assert cfg.pois[0].location.longitude == pytest.approx(172.7)
 
     def test_missing_name_raises(self, tmp_path: pathlib.Path) -> None:
         data = {k: v for k, v in MINIMAL_MISSION.items() if k != "name"}

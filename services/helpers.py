@@ -5,10 +5,10 @@ String helpers
 from __future__ import annotations
 
 import logging
+import random
 import secrets
 import string
 import time
-import random
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
@@ -51,6 +51,31 @@ def remove_network(network: docker.models.networks.Network | None) -> None:
         log.warning("Skipping removal of network %s: %s", network.name, exc)
 
 
+def log_container_logs_on_timeout(
+        container: docker.models.containers.Container | None,
+        name: str,
+        kind: str,
+        logger: logging.Logger) -> None:
+    """
+    Log recent container output after a readiness timeout.
+    """
+    if container is None:
+        return
+    try:
+        raw = container.logs(tail=200)
+        logger.warning(
+            "%s %s readiness timed out. Container logs:\n%s",
+            kind,
+            name,
+            raw.decode(errors='replace'))
+    except Exception:  # pylint: disable=broad-except
+        logger.debug(
+            "Failed to retrieve logs for %s %s after readiness timeout",
+            kind,
+            name,
+            exc_info=True)
+
+
 def get_random_string(length: int) -> str:
     """
     Get a random string of ascii chars (non-secret, e.g. account names).
@@ -91,6 +116,9 @@ def pull_images(client: docker.DockerClient, images: list[str]) -> None:
     """
     Pull all images in parallel. Blocks until all pulls complete.
     """
+    if not images:
+        log.debug("No images to pull")
+        return
     log.info("Pulling %d image(s): %s", len(images), ", ".join(images))
     with ThreadPoolExecutor(max_workers=len(images)) as ex:
         futures = [ex.submit(client.images.pull, image) for image in images]

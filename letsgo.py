@@ -75,11 +75,12 @@ if __name__ == "__main__":
         '--keep',
         action='store_true',
         help='Skip teardown on exit so the operator can inspect state')
-    parser.add_argument(
+    verbosity = parser.add_mutually_exclusive_group()
+    verbosity.add_argument(
         '-v', '--verbose',
         action='store_true',
         help='Enable DEBUG logging')
-    parser.add_argument(
+    verbosity.add_argument(
         '-q', '--quiet',
         action='store_true',
         help='Suppress INFO logging (WARNING and above only)')

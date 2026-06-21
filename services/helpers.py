@@ -23,15 +23,21 @@ log = logging.getLogger(__name__)
 _SECRET_ALPHABET = string.ascii_letters + string.digits + "-_"
 _DOCKER_NAME_INVALID_CHARS = re.compile(r"[^a-z0-9_.-]+")
 _MAX_IMAGE_PULL_WORKERS = 8
+_DOCKER_CONFLICT_STATUS = 409
+_DOCKER_ACTIVE_ENDPOINTS_MESSAGE = "active endpoints"
 
 
 def _is_endpoint_conflict(exc: docker.errors.APIError) -> bool:
+    """
+    Return True for Docker network conflicts caused by attached endpoints.
+    """
     response = getattr(exc, "response", None)
     status_code = getattr(response, "status_code", None)
-    if status_code == 409:
+    if status_code == _DOCKER_CONFLICT_STATUS:
         return True
     explanation = getattr(exc, "explanation", "")
-    return "active endpoints" in str(explanation).lower()
+    details = f"{explanation} {' '.join(str(arg) for arg in exc.args)}"
+    return _DOCKER_ACTIVE_ENDPOINTS_MESSAGE in details.lower()
 
 
 def remove_container(

@@ -12,7 +12,7 @@ from smm_client.missions import SMMMission
 from smm_client.organizations import SMMOrganization
 from smm_client.types import SMMPoint
 
-from services.helpers import get_random_secret, get_random_string, sanitize_account_name
+from services.helpers import get_random_secret, sanitize_account_name
 from services.vehicle import Vehicle
 from configloader import load_config
 
@@ -196,7 +196,7 @@ class MissionRunnerParticipant:
     def __init__(self, parent: MissionRunner, smm: SMMServer) -> None:
         self.parent = parent
         self.smm = smm
-        self.runner_password = get_random_secret()
+        self.runner_password = get_random_secret(12)
         self.mission_id = None
         self.mission_asset_statuses = {}
         self.assets: dict[str, ParticipantAsset] = {}
@@ -211,7 +211,7 @@ class MissionRunnerParticipant:
         if asset not in self.asset_accounts:
             self.asset_accounts[asset] = {
                 'username': sanitize_account_name(asset),
-                'password': get_random_secret()
+                'password': get_random_secret(10)
             }
         return self.asset_accounts[asset]
 

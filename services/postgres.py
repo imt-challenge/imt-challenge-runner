@@ -14,7 +14,7 @@ class PostgresServer:
     This server will have the postgis extension
     """
     def __init__(self, name, network, db_name, docker_client) -> None:
-        self.postgres_pass = get_random_secret()
+        self.postgres_pass = get_random_secret(10)
         self.name = name
         self._db_name = db_name
         self.instance = None

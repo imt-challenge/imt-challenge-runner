@@ -11,6 +11,8 @@ from typing import Callable
 import docker
 import docker.errors
 
+_SECRET_ALPHABET = string.ascii_letters + string.digits + "-_"
+
 
 def remove_container(container) -> None:
     """
@@ -45,14 +47,14 @@ def get_random_string(length) -> str:
     Get a random string of ascii chars (non-secret, e.g. account names).
     """
     return ''.join(
-        secrets.choice(string.ascii_lowercase) for _ in range(length))
+        random.choice(string.ascii_lowercase) for _ in range(length))
 
 
-def get_random_secret(nbytes: int = 24) -> str:
+def get_random_secret(length: int = 32) -> str:
     """
-    Generate a cryptographically secure URL-safe token (≥128 bits at default).
+    Generate a cryptographically secure fixed-length URL-safe token.
     """
-    return secrets.token_urlsafe(nbytes)
+    return ''.join(secrets.choice(_SECRET_ALPHABET) for _ in range(length))
 
 
 def wait_until(

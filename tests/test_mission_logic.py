@@ -1,6 +1,5 @@
 """
-Unit tests for mission.py
-  — ParticipantAsset and MissionRunnerParticipant logic.
+Unit tests for mission.py ParticipantAsset and MissionRunnerParticipant logic.
 """
 
 from unittest.mock import MagicMock
@@ -46,8 +45,9 @@ class TestParticipantAssetShouldLaunch:
         assert asset.added_time is None
         assert not asset.should_launch()
 
-    def test_before_response_time_returns_false(self, mocker: MagicMock) \
-            -> None:
+    def test_before_response_time_returns_false(
+            self,
+            mocker: MagicMock) -> None:
         asset = _make_participant_asset(_asset_config(response_time_mins=5))
         asset.added_time = 1000.0
         mocker.patch("mission.time.time", return_value=1000.0 + 4 * 60)
@@ -93,8 +93,9 @@ def _mock_mission_org(org_name: str) -> MagicMock:
 
 
 class TestCheckAddedOrganizations:
-    def test_matching_org_triggers_add_to_mission(self, mocker: MagicMock) \
-            -> None:
+    def test_matching_org_triggers_add_to_mission(
+            self,
+            mocker: MagicMock) -> None:
         config = _asset_config(org="TeamAlpha")
         participant = _make_mission_runner_participant([config])
 
@@ -103,20 +104,26 @@ class TestCheckAddedOrganizations:
         participant.assets = {config.name: mock_pa}
         participant.mission_org_list = []
 
-        mocker.patch.object(participant, "_get_smm_imt_challenge",
-                            return_value=MagicMock())
+        mocker.patch.object(
+            participant,
+            "_get_smm_imt_challenge",
+            return_value=MagicMock())
         mock_mission = MagicMock()
         mock_mission.get_organizations.return_value = [
-            _mock_mission_org("TeamAlpha")]
-        mocker.patch.object(participant, "_get_mission",
-                            return_value=mock_mission)
+            _mock_mission_org("TeamAlpha")
+        ]
+        mocker.patch.object(
+            participant,
+            "_get_mission",
+            return_value=mock_mission)
 
         participant.check_added_organizations()
 
         mock_pa.add_to_mission.assert_called_once()
 
-    def test_non_matching_org_does_not_trigger(self, mocker: MagicMock) \
-            -> None:
+    def test_non_matching_org_does_not_trigger(
+            self,
+            mocker: MagicMock) -> None:
         config = _asset_config(org="TeamAlpha")
         participant = _make_mission_runner_participant([config])
 
@@ -125,13 +132,18 @@ class TestCheckAddedOrganizations:
         participant.assets = {config.name: mock_pa}
         participant.mission_org_list = []
 
-        mocker.patch.object(participant, "_get_smm_imt_challenge",
-                            return_value=MagicMock())
+        mocker.patch.object(
+            participant,
+            "_get_smm_imt_challenge",
+            return_value=MagicMock())
         mock_mission = MagicMock()
         mock_mission.get_organizations.return_value = [
-            _mock_mission_org("TeamBeta")]
-        mocker.patch.object(participant, "_get_mission",
-                            return_value=mock_mission)
+            _mock_mission_org("TeamBeta")
+        ]
+        mocker.patch.object(
+            participant,
+            "_get_mission",
+            return_value=mock_mission)
 
         participant.check_added_organizations()
 
@@ -146,13 +158,18 @@ class TestCheckAddedOrganizations:
         participant.assets = {config.name: mock_pa}
         participant.mission_org_list = []
 
-        mocker.patch.object(participant, "_get_smm_imt_challenge",
-                            return_value=MagicMock())
+        mocker.patch.object(
+            participant,
+            "_get_smm_imt_challenge",
+            return_value=MagicMock())
         mock_mission = MagicMock()
         mock_mission.get_organizations.return_value = [
-            _mock_mission_org("TeamAlpha")]
-        mocker.patch.object(participant, "_get_mission",
-                            return_value=mock_mission)
+            _mock_mission_org("TeamAlpha")
+        ]
+        mocker.patch.object(
+            participant,
+            "_get_mission",
+            return_value=mock_mission)
 
         participant.check_added_organizations()
 
@@ -170,14 +187,20 @@ class TestCheckAddedOrganizations:
         existing_org_mo = _mock_mission_org("TeamAlpha")
         participant.mission_org_list = [existing_org_mo]
 
-        mocker.patch.object(participant, "_get_smm_imt_challenge",
-                            return_value=MagicMock())
+        mocker.patch.object(
+            participant,
+            "_get_smm_imt_challenge",
+            return_value=MagicMock())
         mock_mission = MagicMock()
         new_org_mo = _mock_mission_org("TeamBeta")
         mock_mission.get_organizations.return_value = [
-            existing_org_mo, new_org_mo]
-        mocker.patch.object(participant, "_get_mission",
-                            return_value=mock_mission)
+            existing_org_mo,
+            new_org_mo,
+        ]
+        mocker.patch.object(
+            participant,
+            "_get_mission",
+            return_value=mock_mission)
 
         participant.check_added_organizations()
 

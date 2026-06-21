@@ -9,8 +9,11 @@ import textwrap
 import pytest
 import yaml
 
-from configloader import load_config, load_mission_config, \
-                         load_participant_config
+from configloader import (
+    load_config,
+    load_mission_config,
+    load_participant_config,
+)
 from configmodels import ConfigError
 
 
@@ -82,7 +85,7 @@ class TestLoadMissionConfig:
         data["POIs"] = [
             {
                 "name": "Clue 1",
-                "location": {"latitude": -43.6, "longitude": 172.7}
+                "location": {"latitude": -43.6, "longitude": 172.7},
             }
         ]
         path = _write(tmp_path, "mission.yaml", data)
@@ -102,11 +105,14 @@ class TestLoadMissionConfig:
         with pytest.raises(ConfigError, match="assets is required"):
             load_mission_config(path)
 
-    def test_missing_asset_base_location_raises(self, tmp_path: pathlib.Path) \
-            -> None:
-        asset = {k: v for k, v in
-                 MINIMAL_MISSION["assets"][0].items()  # type: ignore[index]
-                 if k != "baseLocation"}
+    def test_missing_asset_base_location_raises(
+            self,
+            tmp_path: pathlib.Path) -> None:
+        asset = {
+            k: v
+            for k, v in MINIMAL_MISSION["assets"][0].items()  # type: ignore
+            if k != "baseLocation"
+        }
         data = dict(MINIMAL_MISSION, assets=[asset])
         path = _write(tmp_path, "mission.yaml", data)
         with pytest.raises(ConfigError, match="baseLocation is required"):
@@ -132,8 +138,9 @@ class TestLoadParticipantConfig:
         with pytest.raises(ConfigError, match="members is required"):
             load_participant_config(path)
 
-    def test_member_missing_password_raises(self, tmp_path: pathlib.Path) \
-            -> None:
+    def test_member_missing_password_raises(
+            self,
+            tmp_path: pathlib.Path) -> None:
         data = {"name": "Team Alpha", "members": [{"username": "alice"}]}
         path = _write(tmp_path, "participant.yaml", data)
         with pytest.raises(ConfigError, match="password is required"):

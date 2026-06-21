@@ -6,8 +6,9 @@ pip install -r requirements-dev.txt
 
 pycodestyle *.py */*.py
 
-PYTHONPATH=`pwd` pylint services/ letsgo.py instance.py mission.py
+export PYTHONPATH=`pwd`
 
+pylint services/ letsgo.py instance.py mission.py
 mypy .
 
 pytest -m "not integration"

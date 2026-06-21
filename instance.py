@@ -10,6 +10,7 @@ import docker
 
 from configloader import load_participant_config
 from configmodels import ParticipantConfig
+from services.helpers import sanitize_docker_name
 from services.smm import SMMServer
 
 log = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class Participant:
     def __init__(self, filename: str) -> None:
         config: ParticipantConfig = load_participant_config(filename)
         self.name = config.name
+        self.service_name = sanitize_docker_name(config.name)
         self.members = config.members
         self.smm: SMMServer | None = None
 
@@ -30,7 +32,7 @@ class Participant:
         Start the services for this participant
         """
         log.info("Starting participant %s", self.name)
-        self.smm = SMMServer(f'{self.name}-smm', None, docker_client)
+        self.smm = SMMServer(f'{self.service_name}-smm', None, docker_client)
         self.smm.start()
 
     def setup(self) -> None:

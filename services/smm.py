@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 import urllib.error
 import urllib.request
 
@@ -108,6 +109,38 @@ class SMMServer:
             raise
         log.debug("SMM %s web server is ready", self.name)
 
+    def _ensure_image_available(self) -> None:
+        try:
+            self.docker_client.images.get(self.IMAGE)
+        except docker.errors.ImageNotFound as exc:
+            raise RuntimeError(
+                f"{self.IMAGE} must be pulled before starting SMM "
+                f"{self.name}") from exc
+
+    def _resolve_host_port(self) -> int:
+        if self.instance is None:
+            raise RuntimeError(f"SMM {self.name} container has not been created")
+
+        ports = self.instance.attrs.get('NetworkSettings', {}).get('Ports', {})
+        binding_key = f'{self.internal_port}/tcp'
+        bindings: Any = ports.get(binding_key)
+        if not isinstance(bindings, list) or not bindings:
+            raise RuntimeError(
+                f"SMM {self.name} has no host port binding for {binding_key}")
+
+        first_binding = bindings[0]
+        if not isinstance(first_binding, dict) or 'HostPort' not in first_binding:
+            raise RuntimeError(
+                f"SMM {self.name} has an invalid host port binding "
+                f"for {binding_key}")
+
+        try:
+            return int(first_binding['HostPort'])
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(
+                f"SMM {self.name} host port binding for {binding_key} "
+                "is not an integer") from exc
+
     def start(self) -> None:
         """
         Start this instance, and the related database server.
@@ -116,6 +149,7 @@ class SMMServer:
         assert self.postgres is not None
         assert self.db_net is not None
         log.info("Starting SMM %s", self.name)
+        self._ensure_image_available()
         self.postgres.start()
         self.instance = self.docker_client.containers.create(
             self.IMAGE,
@@ -140,9 +174,7 @@ class SMMServer:
         log.debug("Created SMM container %s", self.name)
         self.instance.start()
         self.instance.reload()
-        port_bindings = self.instance.attrs['NetworkSettings']['Ports']
-        self.port = int(
-            port_bindings[f'{self.internal_port}/tcp'][0]['HostPort'])
+        self.port = self._resolve_host_port()
         log.debug("SMM %s started on port %s", self.name, self.port)
         self._wait_for_web_startup()
         log.info("SMM %s ready on port %s", self.name, self.port)

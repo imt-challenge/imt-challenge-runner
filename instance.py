@@ -16,6 +16,10 @@ from services.smm import SMMServer
 log = logging.getLogger(__name__)
 
 
+class ServiceNotStartedError(RuntimeError):
+    """Raised when a participant service is used before startup."""
+
+
 class Participant:
     """
     State for a participant
@@ -44,10 +48,9 @@ class Participant:
         """
         Setup the participant(s) accounts in this instance
         """
-        if self.smm is None:
-            raise RuntimeError(f"Participant {self.name} has not been started")
+        smm = require_smm(self)
         log.info("Setting up accounts for participant %s", self.name)
-        smm_admin = self.smm.get_web_connection()
+        smm_admin = smm.get_web_connection()
         imt_org = smm_admin.create_organization('IMT')
         for member in self.members:
             user = smm_admin.create_user(
@@ -76,3 +79,13 @@ class Participant:
             self.smm.cleanup()
             self.smm = None
         log.debug("Participant %s cleanup complete", self.name)
+
+
+def require_smm(participant: Participant) -> SMMServer:
+    """
+    Return a participant's SMM service, or raise if it has not been started.
+    """
+    if participant.smm is None:
+        raise ServiceNotStartedError(
+            f"Participant {participant.name} has not been started")
+    return participant.smm

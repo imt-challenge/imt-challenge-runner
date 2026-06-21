@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 import docker
 
 from configmodels import ConfigError
-from instance import Participant
+from instance import Participant, require_smm
 from mission import MissionRunner
 from services.helpers import pull_images
 from services.log import configure_logging
@@ -46,12 +46,6 @@ def _install_signal_handlers() -> None:
         raise KeyboardInterrupt(f"Received signal {signum}")
     signal.signal(signal.SIGINT, _handle)
     signal.signal(signal.SIGTERM, _handle)
-
-
-def _require_smm(participant: Participant) -> SMMServer:
-    if participant.smm is None:
-        raise RuntimeError(f"Participant {participant.name} has not been started")
-    return participant.smm
 
 
 if __name__ == "__main__":
@@ -129,7 +123,7 @@ if __name__ == "__main__":
 
         # Add each participant to the runner (serial — touches shared state)
         for participant in participant_services:
-            runner.add_participant(_require_smm(participant))
+            runner.add_participant(require_smm(participant))
 
         # Setup participant accounts in parallel
         with ThreadPoolExecutor(max_workers=n_workers) as ex:
@@ -140,7 +134,7 @@ if __name__ == "__main__":
         runner.create_mission()
 
         for participant in participant_services:
-            smm = _require_smm(participant)
+            smm = require_smm(participant)
             log.info(
                 "%s: http://localhost:%s",
                 participant.name,

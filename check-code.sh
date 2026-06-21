@@ -8,4 +8,6 @@ pycodestyle *.py */*.py
 
 PYTHONPATH=`pwd` pylint services/ letsgo.py instance.py mission.py
 
+mypy .
+
 pytest -m "not integration"
